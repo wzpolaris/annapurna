@@ -1,5 +1,3 @@
-import type { ComponentType } from 'react';
-import type { TablerIconsProps } from '@tabler/icons-react';
 import {
   IconCirclePlus,
   IconClock,
@@ -11,10 +9,12 @@ import {
   IconUser
 } from '@tabler/icons-react';
 
+type TablerIconComponent = typeof IconCirclePlus;
+
 export interface NavigationItem {
   id: string;
   label: string;
-  icon: ComponentType<TablerIconsProps>;
+  icon: TablerIconComponent;
   isActive?: boolean;
 }
 

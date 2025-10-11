@@ -13,7 +13,7 @@ import {
   Title
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
-import type { TablerIconsProps } from '@tabler/icons-react';
+type TablerIconComponent = typeof IconSearch;
 
 const homePrompt =
   'What react based frameworks should I consider for layout and components for a web app';
@@ -45,7 +45,7 @@ const spacesCardDescriptions = {
 interface SpacesCardConfig {
   id: keyof typeof spacesCardDescriptions;
   title: string;
-  icon?: (props: TablerIconsProps) => JSX.Element;
+  icon?: TablerIconComponent;
 }
 
 const spacesCards: SpacesCardConfig[] = [
@@ -271,13 +271,9 @@ export default function App() {
             ) : (
               <Box style={{ flex: 1, minHeight: 0 }}>
                 <SimpleGrid
-                  cols={3}
+                  cols={{ base: 1, xs: 2, md: 3 }}
                   spacing="lg"
                   verticalSpacing="lg"
-                  breakpoints={[
-                    { maxWidth: '62rem', cols: 2 },
-                    { maxWidth: '36rem', cols: 1 }
-                  ]}
                 >
                   {spacesCards.map(({ id, title, icon: Icon }) => {
                     const isSelected = activeSpaceKey === id;
