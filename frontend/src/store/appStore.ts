@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { ConversationPair } from '../types/chat';
+import type { AssistantBlock, ConversationPair } from '../types/chat';
+import type { ResponseBlock } from '../types/api';
 import { initialConversation } from '../data/sampleConversation';
-import { composeAssistantMessage, composeUserPair } from '../utils/chat';
+import { composeUserPair } from '../utils/chat';
 
 export const DEFAULT_SPACE_KEY = 'home';
 export const DEFAULT_SPACE_TITLE = 'Home';
@@ -44,9 +45,13 @@ export interface AppStoreState {
   sendUserMessage: (content: string) => {
     conversationId: string;
     pairId: string;
-    prompt: string;
   };
-  completeAssistantMessage: (conversationId: string, pairId: string, prompt: string) => void;
+  completeAssistantMessage: (
+    conversationId: string,
+    pairId: string,
+    blocks: ResponseBlock[],
+    timestamp?: string
+  ) => void;
   setConversationLabel: (conversationId: string, displayLabel: string) => void;
   resetConversation: (conversationId: string) => void;
 }
@@ -184,16 +189,43 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       }
     });
 
-    return { conversationId, pairId: pair.id, prompt: content };
+    return { conversationId, pairId: pair.id };
   },
-  completeAssistantMessage: (conversationId, pairId, prompt) => {
+  completeAssistantMessage: (conversationId, pairId, blocks, timestamp) => {
     const state = get();
     const conversation = state.conversations[conversationId];
     if (!conversation) {
       return;
     }
 
-    const assistantMessage = composeAssistantMessage(prompt, pairId);
+    const formattedBlocks: AssistantBlock[] = blocks.map((block, index) => ({
+      id: `${pairId}-block-${index}`,
+      type: block.type,
+      content: block.content,
+      altText: block.altText
+    }));
+
+    if (formattedBlocks.length === 0) {
+      formattedBlocks.push({
+        id: `${pairId}-block-0`,
+        type: 'markdown',
+        content: 'Assistant response was empty.',
+      });
+    }
+
+    const assistantMessage = {
+      id: `${pairId}-assistant`,
+      role: 'assistant' as const,
+      author: 'Atlas',
+      content: formattedBlocks[0]?.content,
+      blocks: formattedBlocks,
+      timestamp:
+        timestamp ??
+        new Intl.DateTimeFormat('en', {
+          hour: 'numeric',
+          minute: '2-digit'
+        }).format(new Date())
+    };
 
     set({
       conversations: {

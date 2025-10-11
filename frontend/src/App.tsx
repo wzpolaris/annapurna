@@ -30,6 +30,7 @@ import {
   selectActiveConversationPairs,
   useAppStore
 } from './store/appStore';
+import type { ChatApiResponse, ResponseBlock } from './types/api';
 
 const spacesCardDescriptions = {
   'ai-fundmodeler': 'Build predictive fund models with AI-assisted workflows.',
@@ -68,12 +69,12 @@ export default function App() {
   const sendUserMessage = useAppStore((state) => state.sendUserMessage);
   const completeAssistantMessage = useAppStore((state) => state.completeAssistantMessage);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const pendingReplyIds = useRef<number[]>([]);
   const isChatView = activeNav !== 'spaces';
-  const headerText =
-    activeSpaceKey !== DEFAULT_SPACE_KEY && activeSpaceTitle
+  const headerText = isChatView
+    ? activeSpaceKey !== DEFAULT_SPACE_KEY && activeSpaceTitle
       ? activeSpaceTitle
-      : `Home – ${homePrompt}`;
+      : `Home – ${homePrompt}`
+    : activeSpaceTitle ?? 'Choose an analysis workspace to launch.';
 
   const navigationSections = useMemo(
     () => [
@@ -112,29 +113,62 @@ export default function App() {
     });
   }, [conversationPairs, isChatView]);
 
-  useEffect(
-    () => () => {
-      pendingReplyIds.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      pendingReplyIds.current = [];
-    },
-    []
-  );
-
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) {
       return;
     }
 
-    const { conversationId, pairId, prompt } = sendUserMessage(trimmed);
+    const spaceKey = activeSpaceKey ?? DEFAULT_SPACE_KEY;
+    const spaceTitle = resolveSpaceTitle(spaceKey);
+    const { conversationId, pairId } = sendUserMessage(trimmed);
     setInputValue('');
 
-    const timeoutId = window.setTimeout(() => {
-      completeAssistantMessage(conversationId, pairId, prompt);
-      pendingReplyIds.current = pendingReplyIds.current.filter((value) => value !== timeoutId);
-    }, 650);
+    try {
+      const conversationState = useAppStore.getState().conversations[conversationId];
+      const history =
+        conversationState?.pairs.slice(0, -1).flatMap((pair) => {
+          const messages = [] as Array<{ role: 'user' | 'assistant'; content: string }>;
+          if (pair.user.content) {
+            messages.push({ role: 'user', content: pair.user.content });
+          }
+          if (pair.assistant?.blocks?.length) {
+            const combined = pair.assistant.blocks.map((block) => block.content).join('\n\n');
+            messages.push({ role: 'assistant', content: combined });
+          }
+          return messages;
+        }) ?? [];
 
-    pendingReplyIds.current.push(timeoutId);
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          conversationId,
+          spaceKey,
+          spaceTitle,
+          message: trimmed,
+          history
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+
+      const data: ChatApiResponse = await response.json();
+      completeAssistantMessage(conversationId, pairId, data.outputs, data.timestamp);
+    } catch (error) {
+      console.error('Failed to fetch assistant response', error);
+      const fallbackBlocks: ResponseBlock[] = [
+        {
+          type: 'markdown',
+          content: 'Sorry, something went wrong while contacting the assistant. Please try again.'
+        }
+      ];
+      completeAssistantMessage(conversationId, pairId, fallbackBlocks);
+    }
   };
 
   const resolveSpaceTitle = (spaceKey: string) => {
@@ -155,8 +189,6 @@ export default function App() {
       const spaceTitle = resolveSpaceTitle(spaceKey);
       createConversation(spaceKey, spaceTitle);
       setInputValue('');
-      pendingReplyIds.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      pendingReplyIds.current = [];
       selectNav('home');
       return;
     }

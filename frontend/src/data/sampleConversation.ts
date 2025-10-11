@@ -27,6 +27,14 @@ export const initialConversation: ConversationPair[] = [
       author: 'Atlas',
       content:
         'Great question! For versatile UI work consider Mantine, MUI, Chakra UI, or Radix. Each ships accessible primitives and has strong community momentum as of 2025.',
+      blocks: [
+        {
+          id: 'pair-1-assistant-block-0',
+          type: 'markdown',
+          content:
+            'Great question! For versatile UI work consider Mantine, MUI, Chakra UI, or Radix. Each ships accessible primitives and has strong community momentum as of 2025.'
+        }
+      ],
       timestamp: formatTime(31)
     }
   },
@@ -46,6 +54,14 @@ export const initialConversation: ConversationPair[] = [
       author: 'Atlas',
       content:
         'Mantine and Chakra favor rapid customization. Mantine ships opinionated themes plus CSS-in-JS primitives, making it quick to restyle sidebars, cards, and chat panes.',
+      blocks: [
+        {
+          id: 'pair-2-assistant-block-0',
+          type: 'markdown',
+          content:
+            'Mantine and Chakra favor rapid customization. Mantine ships opinionated themes plus CSS-in-JS primitives, making it quick to restyle sidebars, cards, and chat panes.'
+        }
+      ],
       timestamp: formatTime(23)
     }
   },
@@ -65,6 +81,14 @@ export const initialConversation: ConversationPair[] = [
       author: 'Atlas',
       content:
         'Sure! Split shared types, reusable components, and feature configs. For instance, keep navigation data in `data/`, UI pieces in `components/`, and chat helpers in `utils/`.',
+      blocks: [
+        {
+          id: 'pair-3-assistant-block-0',
+          type: 'markdown',
+          content:
+            'Sure! Split shared types, reusable components, and feature configs. For instance, keep navigation data in `data/`, UI pieces in `components/`, and chat helpers in `utils/`.'
+        }
+      ],
       timestamp: formatTime(11)
     }
   }
