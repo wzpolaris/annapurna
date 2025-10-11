@@ -1,0 +1,162 @@
+# RBSA Project Configuration
+# All tunable parameters live here.
+
+data:
+  fund_returns_csv: "data/input_fund_returns.csv"   # path relative to project root (ignored if portfolio_csv is set)
+  portfolio_csv: "data/portfolio.csv"                # portfolio with ticker,wt columns (set to null to use fund_returns_csv)
+  frequency: "ME"            # 'ME' monthly
+  price_download_start: "2006-01-01"
+  price_download_end: null  # default: today
+  risk_free_ticker: "BIL"   # used as cash / RF proxy
+
+universe:
+  # Representative ETFs for spanning indices
+  # NOTE: Selection strategy varies by asset class:
+  #   - Large Cap: Bottom-up (IWF, IWD) → test consolidation to IWB or SPY (best substitute wins)
+  #   - Small Cap: Top-down (IWM) → test expansion to IWO, IWN
+  tickers:
+    # SPY excluded from initial - tested as substitute for IWF+IWD
+    - IWM   # US Small Cap Russell 2000 Total (top-down: may expand to IWO+IWN)
+    - IWF   # US Large Growth (Russell 1000 Growth) - bottom-up
+    - IWD   # US Large Value (Russell 1000 Value) - bottom-up
+    # IWB, SPY excluded - both tested as substitutes for IWF+IWD, best one used
+    # IWO, IWN in data but excluded - tested in top-down expansion
+    - EFA   # Developed ex-US
+    - EEM   # Emerging Markets
+    - VNQI  # Global ex-US RE
+    - AGG   # US Aggregate Bond
+    - IEF   # 7-10Y Treasury
+    - LQD   # Investment Grade Credit
+    - HYG   # High Yield
+    - BNDX  # Global ex-US Bond (hedged)
+    - TIP   # TIPS
+    - DBC   # Commodities
+    - BIL   # Cash / T-Bills (RF proxy)
+
+  # Expansion/consolidation assets (available for data but excluded from initial selection)
+  substitution_only:
+    - IWB   # Russell 1000 Total (consolidation target for IWF+IWD)
+    - SPY   # S&P 500 (alternative consolidation target for IWF+IWD)
+    - IWO   # Russell 2000 Growth (expansion target for IWM)
+    - IWN   # Russell 2000 Value (expansion target for IWM)
+    - IWV   # Russell 3000 Total Market (future consolidation)
+
+prelim:
+  winsorize_pct: 0.005      # winsorize tails per side (0 to disable)
+  rolling_window_months: 60
+  test_horizon_months: 12
+  hac_lags: 6               # Newey-West lag for monthly data ~ sqrt(T) rule
+
+preprocessing:
+  desmooth:
+    enabled: true           # Enable AR(1) testing and de-smoothing
+    significance_level: 0.05  # p-value threshold for AR(1) coefficient
+    verbose: true           # Print diagnostics
+
+analysis:
+  mode: "in_sample"         # "in_sample" for contemporaneous fit (R²), "prediction" for out-of-sample
+
+approach_A:
+  max_subset_size: 5
+  allow_cash_less_than_one: false  # if true, sum(w) <= 1; else sum(w) == 1
+  stepwise_epsilon_rmse: 0.00001
+
+approach_B:
+  alpha_grid: [0.25, 0.5, 0.75, 1.0]   # Elastic Net..Lasso (0.0 Ridge not supported)
+  lambda_grid_points: 100                   # path length per alpha
+  one_se_rule: true                         # prefer sparser lambda within 1 SE of min
+  selection_freq_cutoff: 0.5                # drop assets picked < 50% in bootstrap
+  bootstrap_blocks: 12                      # months per block for block bootstrap
+  bootstrap_replicates: 200
+
+approach_C:
+  mcmc_samples: 5000                        # Total MCMC samples
+  mcmc_burnin: 1000                         # Burn-in samples
+  pip_threshold: 0.5                        # Posterior inclusion probability threshold
+
+approach_D:
+  cluster_k_min: 8
+  cluster_k_max: 12
+  linkage: "average"
+
+regimes:
+  enable: true
+  min_regime_len_months: 24
+
+evaluation:
+  # Composite scoring weights (sum to 100)
+  weights:
+    oos_rmse: 40
+    oos_mae: 10
+    adj_r2_or_bic: 5
+    residual_diagnostics: 10
+    stability: 15
+    parsimony: 10
+    economic_coherence: 10
+  max_assets_per_model: 5
+  jaccard_max_similarity: 0.8
+
+reporting:
+  tables_max_rows: 20
+  style: "minimal"
+
+substitutions:
+  # Support both bottom-up (consolidation) and top-down (expansion)
+
+  # Level 1a: Bottom-up consolidation - Large Cap Style (IWB vs SPY)
+  - name: "R1000 for Large Growth+Value"
+    direction: "bottom-up"  # consolidate components into substitute
+    substitute: "IWB"
+    components: ["IWF", "IWD"]
+    description: "Replace Russell 1000 Growth and Value with Russell 1000 Total"
+    r2_threshold: 0.001
+    level: 1
+
+  - name: "SPY for Large Growth+Value"
+    direction: "bottom-up"  # consolidate components into substitute
+    substitute: "SPY"
+    components: ["IWF", "IWD"]
+    description: "Replace Russell 1000 Growth and Value with S&P 500"
+    r2_threshold: 0.001
+    level: 1
+
+  # Level 1b: Top-down expansion - Small Cap Style
+  - name: "Small Growth+Value for R2000"
+    direction: "top-down"  # expand substitute into components
+    substitute: "IWM"
+    components: ["IWO", "IWN"]
+    description: "Expand Russell 2000 Total into Growth and Value components"
+    r2_threshold: 0.001
+    level: 1
+
+  # Level 2: Market-wide consolidation (future)
+  # - name: "R3000 for Large+Small"
+  #   direction: "bottom-up"
+  #   substitute: "IWV"
+  #   components: ["IWB", "IWM"]  # Or ["IWF", "IWD", "IWM"] if Level 1 didn't apply
+  #   description: "Replace Russell 1000 and 2000 with Russell 3000 Total Market"
+  #   r2_threshold: 0.001
+  #   level: 2
+
+summarization:
+  # backend: "openai" or "offline"
+  backend: "openai"
+  model: "gpt-5" #"gpt-5"  # Latest
+  temperature: 0.3
+  system_prompt: |
+    You are an expert quantitative analyst specializing in returns-based style analysis.
+    Provide concise, actionable insights about portfolio composition and factor exposures.
+
+# Interactive Mode Configuration
+# Enable human-in-the-loop checkpoints for key decision points in the analysis
+interactive:
+  enabled: false  # Default to batch mode (no user prompts)
+
+  # Checkpoint directory (default: rbsa/checkpoint_configs/)
+  # Override only if you want to use a custom location
+  # checkpoint_dir: "path/to/custom/configs"
+
+  # AI-powered explanations (requires summarization.backend to be configured)
+  # If false, "explain" option will show a message but not call the AI
+  use_ai_explanations: true
+
