@@ -1,0 +1,293 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  Flex,
+  Group,
+  Paper,
+  ScrollArea,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title
+} from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
+import type { TablerIconsProps } from '@tabler/icons-react';
+
+const homePrompt =
+  'What react based frameworks should I consider for layout and components for a web app';
+import {
+  primaryNavigation,
+  secondaryNavigation
+} from './data/navigation';
+import { Sidebar } from './components/Sidebar';
+import { ChatMessagePair } from './components/ChatMessagePair';
+import { ChatInput } from './components/ChatInput';
+import {
+  DEFAULT_SPACE_KEY,
+  DEFAULT_SPACE_TITLE,
+  selectActiveConversationPairs,
+  useAppStore
+} from './store/appStore';
+
+const spacesCardDescriptions = {
+  'ai-fundmodeler': 'Build predictive fund models with AI-assisted workflows.',
+  'sherlock-holmes': 'Investigate anomalies with forensic analytics.',
+  'risk-chat': 'Converse with risk metrics to surface edge cases.',
+  'private-illiquids': 'Stress test private and illiquid holdings.',
+  optimize: 'Tune portfolio exposures across constraints.',
+  scenarios: 'Simulate future paths and macro scenarios.'
+} as const;
+
+interface SpacesCardConfig {
+  id: keyof typeof spacesCardDescriptions;
+  title: string;
+  icon?: (props: TablerIconsProps) => JSX.Element;
+}
+
+const spacesCards: SpacesCardConfig[] = [
+  { id: 'ai-fundmodeler', title: 'AI FundModeler' },
+  { id: 'sherlock-holmes', title: 'Sherlock Holmes', icon: IconSearch },
+  { id: 'risk-chat', title: 'Risk Chat' },
+  { id: 'private-illiquids', title: 'Private & Illiquids' },
+  { id: 'optimize', title: 'Optimize' },
+  { id: 'scenarios', title: 'Scenarios' }
+];
+
+export default function App() {
+  const [inputValue, setInputValue] = useState('');
+  const conversationPairs = useAppStore(selectActiveConversationPairs);
+  const activeNav = useAppStore((state) => state.activeNav);
+  const activeSpaceKey = useAppStore((state) => state.activeSpaceKey);
+  const activeSpaceTitle = useAppStore((state) => state.activeSpaceTitle);
+  const selectNav = useAppStore((state) => state.selectNav);
+  const selectSpace = useAppStore((state) => state.selectSpace);
+  const ensureConversation = useAppStore((state) => state.ensureConversation);
+  const createConversation = useAppStore((state) => state.createConversation);
+  const sendUserMessage = useAppStore((state) => state.sendUserMessage);
+  const completeAssistantMessage = useAppStore((state) => state.completeAssistantMessage);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const pendingReplyIds = useRef<number[]>([]);
+  const isChatView = activeNav !== 'spaces';
+  const headerText =
+    activeSpaceKey !== DEFAULT_SPACE_KEY && activeSpaceTitle
+      ? activeSpaceTitle
+      : `Home – ${homePrompt}`;
+
+  const navigationSections = useMemo(
+    () => [
+      { id: 'primary', items: primaryNavigation },
+      { id: 'secondary', items: secondaryNavigation }
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!isChatView) {
+      return;
+    }
+
+    const viewport = viewportRef.current;
+    if (!viewport || conversationPairs.length === 0) {
+      return;
+    }
+
+    const latestPairId = conversationPairs[conversationPairs.length - 1]?.id;
+    if (!latestPairId) {
+      return;
+    }
+
+    const latestNode = viewport.querySelector<HTMLElement>(
+      `[data-chat-pair="${latestPairId}"]`
+    );
+
+    if (!latestNode) {
+      return;
+    }
+
+    viewport.scrollTo({
+      top: latestNode.offsetTop,
+      behavior: 'smooth'
+    });
+  }, [conversationPairs, isChatView]);
+
+  useEffect(
+    () => () => {
+      pendingReplyIds.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      pendingReplyIds.current = [];
+    },
+    []
+  );
+
+  const handleSend = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const { conversationId, pairId, prompt } = sendUserMessage(trimmed);
+    setInputValue('');
+
+    const timeoutId = window.setTimeout(() => {
+      completeAssistantMessage(conversationId, pairId, prompt);
+      pendingReplyIds.current = pendingReplyIds.current.filter((value) => value !== timeoutId);
+    }, 650);
+
+    pendingReplyIds.current.push(timeoutId);
+  };
+
+  const resolveSpaceTitle = (spaceKey: string) => {
+    if (spaceKey === DEFAULT_SPACE_KEY) {
+      return DEFAULT_SPACE_TITLE;
+    }
+
+    return (
+      spacesCards.find((card) => card.id === spaceKey)?.title ??
+      activeSpaceTitle ??
+      spaceKey
+    );
+  };
+
+  const handleNavigationSelect = (id: string) => {
+    if (id === 'new-chat') {
+      const spaceKey = activeSpaceKey ?? DEFAULT_SPACE_KEY;
+      const spaceTitle = resolveSpaceTitle(spaceKey);
+      createConversation(spaceKey, spaceTitle);
+      setInputValue('');
+      pendingReplyIds.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      pendingReplyIds.current = [];
+      selectNav('home');
+      return;
+    }
+
+    selectNav(id);
+
+    if (id !== 'spaces') {
+      const spaceTitle = resolveSpaceTitle(activeSpaceKey ?? DEFAULT_SPACE_KEY);
+      ensureConversation(activeSpaceKey ?? DEFAULT_SPACE_KEY, spaceTitle);
+    }
+  };
+
+  return (
+    <Flex h="100dvh" bg="gray.0">
+      <Sidebar
+        sections={navigationSections}
+        activeId={activeNav}
+        onSelect={handleNavigationSelect}
+      />
+
+      <Flex
+        direction="column"
+        flex={1}
+        px="xl"
+        py="xl"
+        gap="lg"
+        bg="white"
+        style={{ minHeight: 0, overflow: 'hidden' }}
+      >
+        <Group justify="space-between" align="center" style={{ flexShrink: 0 }}>
+          <Title order={2} fw={600} c="#02BD9D">
+            NORTHFIELD QuantBot
+          </Title>
+          <Group gap="xs">
+            <Button variant="light" size="sm" color="teal">
+              Summarise
+            </Button>
+            <Button variant="light" size="sm" color="gray">
+              Export
+            </Button>
+            <Button variant="subtle" size="sm" color="gray">
+              Share
+            </Button>
+          </Group>
+        </Group>
+
+        <Text fz="sm" c="dimmed" style={{ flexShrink: 0 }}>
+          {headerText}
+        </Text>
+
+        <Paper
+          withBorder
+          radius="lg"
+          p="xl"
+          shadow="sm"
+          bg="gray.0"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem',
+            overflow: 'hidden'
+          }}
+        >
+          {isChatView ? (
+            <ScrollArea
+              type="auto"
+              viewportRef={viewportRef}
+              style={{ flex: 1, minHeight: 0 }}
+            >
+              <Stack gap="lg" pr="md">
+                {conversationPairs.map((pair) => (
+                  <ChatMessagePair key={pair.id} pair={pair} />
+                ))}
+              </Stack>
+            </ScrollArea>
+          ) : (
+            <Box style={{ flex: 1, minHeight: 0 }}>
+              <SimpleGrid
+                cols={3}
+                spacing="lg"
+                verticalSpacing="lg"
+                breakpoints={[
+                  { maxWidth: '62rem', cols: 2 },
+                  { maxWidth: '36rem', cols: 1 }
+                ]}
+              >
+                {spacesCards.map(({ id, title, icon: Icon }) => {
+                  const isSelected = activeSpaceKey === id;
+                  return (
+                    <Card
+                      key={id}
+                      withBorder
+                      radius="md"
+                      shadow="sm"
+                      p="lg"
+                      onClick={() => selectSpace(id, title)}
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: isSelected ? '#02BD9D' : undefined,
+                        boxShadow: isSelected ? '0 0 0 1px rgba(2, 189, 157, 0.35)' : undefined
+                      }}
+                    >
+                      <Stack gap="sm">
+                        <Group gap="xs" align="center">
+                          <Title order={4}>{title}</Title>
+                          {Icon ? <Icon size={18} stroke={1.6} /> : null}
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                          {spacesCardDescriptions[id]}
+                        </Text>
+                      </Stack>
+                    </Card>
+                  );
+                })}
+              </SimpleGrid>
+            </Box>
+          )}
+        </Paper>
+
+        {isChatView && (
+          <Box px="xs" style={{ flexShrink: 0 }}>
+            <ChatInput
+              value={inputValue}
+              onChange={setInputValue}
+              onSubmit={handleSend}
+            />
+          </Box>
+        )}
+      </Flex>
+    </Flex>
+  );
+}

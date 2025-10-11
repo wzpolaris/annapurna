@@ -1,0 +1,13 @@
+# Editor
+.DS_Store
+*.log
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment files
+.env
+.env.*
