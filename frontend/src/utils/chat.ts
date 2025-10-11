@@ -2,12 +2,21 @@ import type { ChatMessage, ConversationPair } from '../types/chat';
 
 let pairCount = 100;
 
-const timestampFormatter = new Intl.DateTimeFormat('en', {
-  hour: 'numeric',
-  minute: '2-digit'
-});
+const pad = (value: number, length = 2) => value.toString().padStart(length, '0');
 
-const formatTimestamp = () => timestampFormatter.format(new Date());
+export const formatChatTimestamp = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hour = pad(date.getHours());
+  const minute = pad(date.getMinutes());
+  const second = pad(date.getSeconds());
+  const tenths = Math.floor(date.getMilliseconds() / 100);
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}.${tenths}`;
+};
+
+const formatTimestamp = () => formatChatTimestamp(new Date());
 
 const createChatMessage = (
   role: ChatMessage['role'],

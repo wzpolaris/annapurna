@@ -101,18 +101,76 @@ export default function App() {
       return;
     }
 
-    const latestNode = viewport.querySelector<HTMLElement>(
-      `[data-chat-pair="${latestPairId}"]`
-    );
+    const scrollToLatest = () => {
+      const latestNode = viewport.querySelector<HTMLElement>(
+        `[data-chat-pair="${latestPairId}"]`
+      );
 
-    if (!latestNode) {
-      return;
+      if (!latestNode) {
+        return;
+      }
+
+      const viewportHeight = viewport.clientHeight;
+      const fitsInViewport = latestNode.offsetHeight <= viewportHeight;
+      const bottomScrollTop = Math.max(viewport.scrollHeight - viewportHeight, 0);
+      const targetTop = fitsInViewport ? bottomScrollTop : latestNode.offsetTop;
+
+      viewport.scrollTo({
+        top: targetTop,
+        behavior: 'smooth'
+      });
+    };
+
+    const runScrollAfterPaint = () => {
+      scrollToLatest();
+
+      const latestNode = viewport.querySelector<HTMLElement>(
+        `[data-chat-pair="${latestPairId}"]`
+      );
+
+      if (
+        !latestNode ||
+        typeof window === 'undefined' ||
+        !('ResizeObserver' in window)
+      ) {
+        return;
+      }
+
+      const resizeObserver = new window.ResizeObserver(() => {
+        scrollToLatest();
+        resizeObserver.disconnect();
+      });
+
+      resizeObserver.observe(latestNode);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    };
+
+    let cleanupResizeObserver: (() => void) | undefined;
+    const scheduleScroll = () => {
+      cleanupResizeObserver?.();
+      const cleanup = runScrollAfterPaint();
+      if (cleanup) {
+        cleanupResizeObserver = cleanup;
+      }
+    };
+
+    let rafId: number | null = null;
+
+    if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+      rafId = window.requestAnimationFrame(scheduleScroll);
+    } else {
+      scheduleScroll();
     }
 
-    viewport.scrollTo({
-      top: latestNode.offsetTop,
-      behavior: 'smooth'
-    });
+    return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      cleanupResizeObserver?.();
+    };
   }, [conversationPairs, isChatView]);
 
   const submitMessage = async (message: string, options?: { displayMessage?: string }) => {

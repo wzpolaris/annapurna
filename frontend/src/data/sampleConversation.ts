@@ -1,14 +1,10 @@
 import type { ConversationPair } from '../types/chat';
-
-const timestamp = new Intl.DateTimeFormat('en', {
-  hour: 'numeric',
-  minute: '2-digit'
-});
+import { formatChatTimestamp } from '../utils/chat';
 
 const now = new Date();
 
 const formatTime = (deltaMinutes: number) =>
-  timestamp.format(new Date(now.getTime() - deltaMinutes * 60_000));
+  formatChatTimestamp(new Date(now.getTime() - deltaMinutes * 60_000));
 
 export const initialConversation: ConversationPair[] = [
   {
@@ -64,8 +60,7 @@ export const initialConversation: ConversationPair[] = [
       ],
       timestamp: formatTime(23)
     }
-  }
-  ,
+  },
   {
     id: 'pair-3',
     user: {

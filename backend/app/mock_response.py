@@ -20,10 +20,10 @@ LATEX_SNIPPETS = [
 def _markdown_block(space_key: str) -> ResponseBlock:
     note = random.choice(LATEX_SNIPPETS)
     content = (
-        f"### Mock analysis for `{space_key}`\n"
+        f"#### Mock analysis for `{space_key}`\n"
         "This is a placeholder response generated locally for rapid prototyping.\n\n"
         f"{note}\n"
-        "- Data refreshed just now\\n"
+        "- Data refreshed just now\n\n"
         "- No backend call was made"
     )
     return ResponseBlock(type='markdown', content=content)

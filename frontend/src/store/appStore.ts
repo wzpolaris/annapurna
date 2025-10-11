@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
 import type { ResponseBlock } from '../types/api';
 import { initialConversation } from '../data/sampleConversation';
-import { composeUserPair } from '../utils/chat';
+import { composeUserPair, formatChatTimestamp } from '../utils/chat';
 
 export const DEFAULT_SPACE_KEY = 'home';
 export const DEFAULT_SPACE_TITLE = 'Home';
@@ -260,18 +260,17 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       });
     }
 
+    const resolvedTimestamp = timestamp
+      ? formatChatTimestamp(new Date(timestamp))
+      : formatChatTimestamp(new Date());
+
     const assistantMessage = {
       id: `${pairId}-assistant`,
       role: 'assistant' as const,
       author: 'Atlas',
       content: formattedBlocks[0]?.content,
       blocks: formattedBlocks,
-      timestamp:
-        timestamp ??
-        new Intl.DateTimeFormat('en', {
-          hour: 'numeric',
-          minute: '2-digit'
-        }).format(new Date())
+      timestamp: resolvedTimestamp
     };
 
     set({
