@@ -24,6 +24,7 @@ import {
 import { Sidebar } from './components/Sidebar';
 import { ChatMessagePair } from './components/ChatMessagePair';
 import { ChatInput } from './components/ChatInput';
+import { ConversationContainer } from './components/ConversationContainer';
 import {
   DEFAULT_SPACE_KEY,
   DEFAULT_SPACE_TITLE,
@@ -220,7 +221,7 @@ export default function App() {
       >
         <Group justify="space-between" align="center" style={{ flexShrink: 0 }}>
           <Title order={2} fw={600} c="#02BD9D">
-            NORTHFIELD QuantBot
+            NORTHFIELD ai
           </Title>
           <Group gap="xs">
             <Button variant="light" size="sm" color="teal">
@@ -239,86 +240,88 @@ export default function App() {
           {headerText}
         </Text>
 
-        <Paper
-          withBorder
-          radius="lg"
-          p="xl"
-          shadow="sm"
-          bg="gray.0"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.5rem',
-            overflow: 'hidden'
-          }}
-        >
-          {isChatView ? (
-            <ScrollArea
-              type="auto"
-              viewportRef={viewportRef}
-              style={{ flex: 1, minHeight: 0 }}
-            >
-              <Stack gap="lg" pr="md">
-                {conversationPairs.map((pair) => (
-                  <ChatMessagePair key={pair.id} pair={pair} />
-                ))}
-              </Stack>
-            </ScrollArea>
-          ) : (
-            <Box style={{ flex: 1, minHeight: 0 }}>
-              <SimpleGrid
-                cols={3}
-                spacing="lg"
-                verticalSpacing="lg"
-                breakpoints={[
-                  { maxWidth: '62rem', cols: 2 },
-                  { maxWidth: '36rem', cols: 1 }
-                ]}
+        <ConversationContainer>
+          <Paper
+            withBorder
+            radius="lg"
+            p="xl"
+            shadow="sm"
+            bg="gray.0"
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.5rem',
+              overflow: 'hidden'
+            }}
+          >
+            {isChatView ? (
+              <ScrollArea
+                type="auto"
+                viewportRef={viewportRef}
+                style={{ flex: 1, minHeight: 0 }}
               >
-                {spacesCards.map(({ id, title, icon: Icon }) => {
-                  const isSelected = activeSpaceKey === id;
-                  return (
-                    <Card
-                      key={id}
-                      withBorder
-                      radius="md"
-                      shadow="sm"
-                      p="lg"
-                      onClick={() => selectSpace(id, title)}
-                      style={{
-                        cursor: 'pointer',
-                        borderColor: isSelected ? '#02BD9D' : undefined,
-                        boxShadow: isSelected ? '0 0 0 1px rgba(2, 189, 157, 0.35)' : undefined
-                      }}
-                    >
-                      <Stack gap="sm">
-                        <Group gap="xs" align="center">
-                          <Title order={4}>{title}</Title>
-                          {Icon ? <Icon size={18} stroke={1.6} /> : null}
-                        </Group>
-                        <Text size="sm" c="dimmed">
-                          {spacesCardDescriptions[id]}
-                        </Text>
-                      </Stack>
-                    </Card>
-                  );
-                })}
-              </SimpleGrid>
+                <Stack gap="lg" pr="md">
+                  {conversationPairs.map((pair) => (
+                    <ChatMessagePair key={pair.id} pair={pair} />
+                  ))}
+                </Stack>
+              </ScrollArea>
+            ) : (
+              <Box style={{ flex: 1, minHeight: 0 }}>
+                <SimpleGrid
+                  cols={3}
+                  spacing="lg"
+                  verticalSpacing="lg"
+                  breakpoints={[
+                    { maxWidth: '62rem', cols: 2 },
+                    { maxWidth: '36rem', cols: 1 }
+                  ]}
+                >
+                  {spacesCards.map(({ id, title, icon: Icon }) => {
+                    const isSelected = activeSpaceKey === id;
+                    return (
+                      <Card
+                        key={id}
+                        withBorder
+                        radius="md"
+                        shadow="sm"
+                        p="lg"
+                        onClick={() => selectSpace(id, title)}
+                        style={{
+                          cursor: 'pointer',
+                          borderColor: isSelected ? '#02BD9D' : undefined,
+                          boxShadow: isSelected ? '0 0 0 1px rgba(2, 189, 157, 0.35)' : undefined
+                        }}
+                      >
+                        <Stack gap="sm">
+                          <Group gap="xs" align="center">
+                            <Title order={4}>{title}</Title>
+                            {Icon ? <Icon size={18} stroke={1.6} /> : null}
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            {spacesCardDescriptions[id]}
+                          </Text>
+                        </Stack>
+                      </Card>
+                    );
+                  })}
+                </SimpleGrid>
+              </Box>
+            )}
+          </Paper>
+
+          {isChatView && (
+            <Box px="xs" style={{ flexShrink: 0 }}>
+              <ChatInput
+                value={inputValue}
+                onChange={setInputValue}
+                onSubmit={handleSend}
+              />
             </Box>
           )}
-        </Paper>
-
-        {isChatView && (
-          <Box px="xs" style={{ flexShrink: 0 }}>
-            <ChatInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={handleSend}
-            />
-          </Box>
-        )}
+        </ConversationContainer>
       </Flex>
     </Flex>
   );
