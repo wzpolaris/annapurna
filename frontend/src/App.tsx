@@ -13,6 +13,7 @@ import {
   Title
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
+import { conversationExchangeTitleColor } from './theme/colors';
 type TablerIconComponent = typeof IconSearch;
 
 const homePrompt =
@@ -114,17 +115,16 @@ export default function App() {
     });
   }, [conversationPairs, isChatView]);
 
-  const handleSend = async () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) {
+  const submitMessage = async (message: string, options?: { displayMessage?: string }) => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
       return;
     }
 
+    const displayMessage = options?.displayMessage?.trim() || trimmedMessage;
     const spaceKey = activeSpaceKey ?? DEFAULT_SPACE_KEY;
     const spaceTitle = resolveSpaceTitle(spaceKey);
-    const { conversationId, pairId } = sendUserMessage(trimmed);
-    setInputValue('');
-
+    const { conversationId, pairId } = sendUserMessage(displayMessage);
     try {
       const conversationState = useAppStore.getState().conversations[conversationId];
       const history =
@@ -149,7 +149,7 @@ export default function App() {
           conversationId,
           spaceKey,
           spaceTitle,
-          message: trimmed,
+          message: trimmedMessage,
           history
         })
       });
@@ -170,6 +170,21 @@ export default function App() {
       ];
       completeAssistantMessage(conversationId, pairId, fallbackBlocks);
     }
+  };
+
+  const handleSend = async () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    setInputValue('');
+    await submitMessage(trimmed);
+  };
+
+  const handleQuickReply = (submission: string, displayMessage?: string) => {
+    setInputValue('');
+    void submitMessage(submission, { displayMessage });
   };
 
   const resolveSpaceTitle = (spaceKey: string) => {
@@ -220,8 +235,11 @@ export default function App() {
         style={{ minHeight: 0, overflow: 'hidden' }}
       >
         <Group justify="space-between" align="center" style={{ flexShrink: 0 }}>
-          <Title order={2} fw={600} c="#02BD9D">
-            NORTHFIELD ai
+          <Title order={2} fw={600} c={conversationExchangeTitleColor}>
+            NORTHFIELD{' '}
+            <Text component="span" inherit fs="italic">
+              ai
+            </Text>
           </Title>
           <Group gap="xs">
             <Button variant="light" size="sm" color="teal">
@@ -264,7 +282,11 @@ export default function App() {
               >
                 <Stack gap="lg" pr="md">
                   {conversationPairs.map((pair) => (
-                    <ChatMessagePair key={pair.id} pair={pair} />
+                    <ChatMessagePair
+                      key={pair.id}
+                      pair={pair}
+                      onQuickReply={handleQuickReply}
+                    />
                   ))}
                 </Stack>
               </ScrollArea>
@@ -285,12 +307,12 @@ export default function App() {
                         shadow="sm"
                         p="lg"
                         onClick={() => selectSpace(id, title)}
-                        style={{
-                          cursor: 'pointer',
-                          borderColor: isSelected ? '#02BD9D' : undefined,
-                          boxShadow: isSelected ? '0 0 0 1px rgba(2, 189, 157, 0.35)' : undefined
-                        }}
-                      >
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: isSelected ? conversationExchangeTitleColor : undefined,
+                        boxShadow: isSelected ? '0 0 0 1px rgba(2, 189, 157, 0.35)' : undefined
+                      }}
+                    >
                         <Stack gap="sm">
                           <Group gap="xs" align="center">
                             <Title order={4}>{title}</Title>

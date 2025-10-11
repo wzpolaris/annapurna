@@ -64,7 +64,8 @@ export const initialConversation: ConversationPair[] = [
       ],
       timestamp: formatTime(23)
     }
-  },
+  }
+  ,
   {
     id: 'pair-3',
     user: {
@@ -87,6 +88,25 @@ export const initialConversation: ConversationPair[] = [
           type: 'markdown',
           content:
             'Sure! Split shared types, reusable components, and feature configs. For instance, keep navigation data in `data/`, UI pieces in `components/`, and chat helpers in `utils/`.'
+        },
+        {
+          id: 'pair-3-assistant-block-1',
+          type: 'queryButtons',
+          content: 'Would you like me to provide greater detail?',
+          buttons: [
+            {
+              id: 'pair-3-assistant-block-1-yes',
+              label: 'Yes, expand it',
+              submission: 'mock provide additional detail',
+              userMessage: 'Provide additional detail'
+            },
+            {
+              id: 'pair-3-assistant-block-1-no',
+              label: 'No thank you',
+              submission: 'mock no additional detail needed',
+              userMessage: 'No additional detail needed'
+            }
+          ]
         }
       ],
       timestamp: formatTime(11)

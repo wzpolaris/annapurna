@@ -70,14 +70,14 @@ async def chat(request: ChatRequest) -> ChatResponse:
         logger.exception('OpenAI call failed')
         raise HTTPException(status_code=502, detail='OpenAI request failed') from exc
 
-    table_md: Optional[str] = None
-    if request.space_key and request.space_key != 'home' and not request.message.strip().lower().startswith('mock'):
-        table_md = build_space_table(request.space_key)
+    # table_md: Optional[str] = None
+    # if request.space_key and request.space_key != 'home' and not request.message.strip().lower().startswith('mock'):
+    #     table_md = build_space_table(request.space_key)
+
+    # if table_md:
+    #     outputs.append(ResponseBlock(type='markdown', content=f"### Data snapshot\n{table_md}"))
 
     timestamp = datetime.now(tz=timezone.utc).isoformat()
-
-    if table_md:
-        outputs.append(ResponseBlock(type='markdown', content=f"### Data snapshot\n{table_md}"))
 
     logger.info(
         'Chat response ready',

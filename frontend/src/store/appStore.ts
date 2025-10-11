@@ -177,14 +177,43 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       set({ activeConversationId: conversationId });
     }
 
+    const resolvedConversation = conversation ?? get().conversations[conversationId];
     const pair = composeUserPair(content);
+    const updatedPairs =
+      resolvedConversation?.pairs.map((existingPair) => {
+        if (!existingPair.assistant) {
+          return existingPair;
+        }
+
+        let blocksChanged = false;
+        const updatedBlocks = existingPair.assistant.blocks.map((block) => {
+          if (block.type === 'queryButtons' && !block.interactionCompleted) {
+            blocksChanged = true;
+            return {
+              ...block,
+              interactionCompleted: true
+            };
+          }
+          return block;
+        });
+
+        return blocksChanged
+          ? {
+              ...existingPair,
+              assistant: {
+                ...existingPair.assistant,
+                blocks: updatedBlocks
+              }
+            }
+          : existingPair;
+      }) ?? [];
 
     set({
       conversations: {
         ...get().conversations,
         [conversationId]: {
-          ...conversation,
-          pairs: [...conversation.pairs, pair]
+          ...resolvedConversation,
+          pairs: [...updatedPairs, pair]
         }
       }
     });
@@ -198,12 +227,30 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       return;
     }
 
-    const formattedBlocks: AssistantBlock[] = blocks.map((block, index) => ({
-      id: `${pairId}-block-${index}`,
-      type: block.type,
-      content: block.content,
-      altText: block.altText
-    }));
+    const formattedBlocks: AssistantBlock[] = blocks.map((block, index) => {
+      const blockId = `${pairId}-block-${index}`;
+      const buttons =
+        block.type === 'queryButtons'
+          ? (block.buttons ?? []).map((button, buttonIndex) => ({
+              id: button.id || `${blockId}-action-${buttonIndex}`,
+              label: button.label,
+              submission: button.submission,
+              userMessage: button.userMessage
+            }))
+          : undefined;
+
+      return {
+        id: blockId,
+        type: block.type,
+        content: block.content,
+        altText: block.altText,
+        buttons,
+        interactionCompleted:
+          block.type === 'queryButtons'
+            ? Boolean(block.interactionCompleted)
+            : undefined
+      };
+    });
 
     if (formattedBlocks.length === 0) {
       formattedBlocks.push({

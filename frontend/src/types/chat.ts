@@ -8,13 +8,22 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-export type AssistantBlockType = 'markdown' | 'image' | 'html';
+export type AssistantBlockType = 'markdown' | 'image' | 'html' | 'queryButtons';
+
+export interface AssistantActionButton {
+  id: string;
+  label: string;
+  submission: string;
+  userMessage?: string;
+}
 
 export interface AssistantBlock {
   id: string;
   type: AssistantBlockType;
   content: string;
   altText?: string;
+  buttons?: AssistantActionButton[];
+  interactionCompleted?: boolean;
 }
 
 export interface AssistantMessage extends Omit<ChatMessage, 'role'> {

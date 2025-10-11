@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Divider,
   Group,
   Loader,
@@ -15,9 +16,11 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
+import { conversationExchangeTitleColor } from '../theme/colors';
 
 interface ChatMessagePairProps {
   pair: ConversationPair;
+  onQuickReply?: (submission: string, displayMessage?: string) => void;
 }
 
 const AssistantPending = () => (
@@ -29,8 +32,36 @@ const AssistantPending = () => (
   </Group>
 );
 
-const renderBlock = (block: AssistantBlock): JSX.Element => {
+const renderBlock = (
+  block: AssistantBlock,
+  onQuickReply?: (submission: string, displayMessage?: string) => void
+): JSX.Element => {
   switch (block.type) {
+    case 'queryButtons':
+      return (
+        <Stack gap="xs">
+          <Text fw={500}>{block.content}</Text>
+          <Group gap="xs" wrap="wrap">
+            {(block.buttons ?? []).map((button) => (
+              <Button
+                key={button.id}
+                variant="light"
+                color={block.interactionCompleted ? 'gray' : 'teal'}
+                size="xs"
+                disabled={block.interactionCompleted}
+                onClick={() => {
+                  if (block.interactionCompleted) {
+                    return;
+                  }
+                  onQuickReply?.(button.submission, button.userMessage ?? button.label);
+                }}
+              >
+                {button.label}
+              </Button>
+            ))}
+          </Group>
+        </Stack>
+      );
     case 'image':
       return (
         <Paper withBorder radius="sm" p="sm" bg="gray.0">
@@ -63,7 +94,7 @@ const renderBlock = (block: AssistantBlock): JSX.Element => {
   }
 };
 
-export const ChatMessagePair = ({ pair }: ChatMessagePairProps) => (
+export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) => (
   <Paper
     withBorder
     radius="sm"
@@ -83,7 +114,9 @@ export const ChatMessagePair = ({ pair }: ChatMessagePairProps) => (
       </Group>
 
       <Stack gap={2}>
-        <Title order={4}>{pair.user.content}</Title>
+        <Title order={4} c={conversationExchangeTitleColor}>
+          {pair.user.content}
+        </Title>
       </Stack>
 
       <Divider />
@@ -91,7 +124,7 @@ export const ChatMessagePair = ({ pair }: ChatMessagePairProps) => (
       {pair.assistant ? (
         <Stack gap="sm">
           {(pair.assistant.blocks ?? []).map((block) => (
-            <Box key={block.id}>{renderBlock(block)}</Box>
+            <Box key={block.id}>{renderBlock(block, onQuickReply)}</Box>
           ))}
         </Stack>
       ) : (
