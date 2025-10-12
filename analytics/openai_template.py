@@ -17,7 +17,7 @@ RESULT_KEYS = {
     'results_substitution',
 }
 
-PLACEHOLDER_PATTERN = re.compile(r'\{\{<([^>]+)>\}\}')
+PLACEHOLDER_PATTERN = re.compile(r'\{\{\s*(?:<)?([^>}]+?)(?:>)?\s*\}\}')
 
 
 def _escape_for_json(value: str) -> str:
@@ -29,6 +29,7 @@ def _build_placeholder_files(root: Path) -> Dict[str, Path]:
     prompts_dir = root / 'analytics' / 'prompts'
     mapping: Dict[str, Path] = {
         'system_prompt.md': prompts_dir / 'system_prompt.md',
+        'llm_instructions.md': prompts_dir / 'llm_instructions.md',
         'overview_desmoothing.md': prompts_dir / 'overview_desmoothing.md',
         'overview_approach_A.md': prompts_dir / 'overview_approach_A.md',
         'overview_approach_B.md': prompts_dir / 'overview_approach_B.md',
@@ -47,33 +48,20 @@ def _build_placeholder_files(root: Path) -> Dict[str, Path]:
 def _default_results_payload() -> Dict[str, Any]:
     return {key: {} for key in RESULT_KEYS}
 
-
-def render_prompt(
+def _render_template(
+    template: str,
     *,
-    project_root: Path | None = None,
-    results: Mapping[str, Any] | None = None,
+    placeholder_files: Mapping[str, Path],
+    results: Mapping[str, Any],
 ) -> str:
-    root = project_root or PROJECT_ROOT
-    placeholder_files = _build_placeholder_files(root)
-    prompts_dir = root / 'analytics' / 'prompts'
-
-    template_path = prompts_dir / 'draft.md'
-    if not template_path.exists():
-        raise FileNotFoundError(f'Cannot find draft template at {template_path}')
-
-    template = template_path.read_text(encoding='utf-8')
-
-    result_payload = _default_results_payload()
-    if results:
-        for key in RESULT_KEYS:
-            if key in results:
-                result_payload[key] = results[key]  # type: ignore[index]
-
     def replacement(match: re.Match[str]) -> str:
         key = match.group(1)
 
-        if key in RESULT_KEYS:
-            return json.dumps(result_payload[key], indent=2)
+        if key in results:
+            return json.dumps(results[key], indent=2)
+
+        if key == 'llm_instructions.md':
+            return _escape_for_json('Provided via system role (see instructions above).')
 
         if key not in placeholder_files:
             raise KeyError(f'Unsupported placeholder: {key}')
@@ -83,21 +71,91 @@ def render_prompt(
 
     return PLACEHOLDER_PATTERN.sub(replacement, template)
 
+def render_system_message(
+    *,
+    project_root: Path | None = None,
+    results: Mapping[str, Any] | None = None,
+) -> str:
+    root = project_root or PROJECT_ROOT
+    placeholder_files = _build_placeholder_files(root)
+    prompts_dir = root / 'analytics' / 'prompts'
+    template_path = prompts_dir / 'llm_instructions.md'
+    if not template_path.exists():
+        raise FileNotFoundError(f'Cannot find instructions at {template_path}')
+
+    template = template_path.read_text(encoding='utf-8')
+    result_payload = _default_results_payload()
+    if results:
+        for key in RESULT_KEYS:
+            if key in results:
+                result_payload[key] = results[key]  # type: ignore[index]
+
+    return _render_template(template, placeholder_files=placeholder_files, results=result_payload)
+
+
+def render_user_payload(
+    *,
+    project_root: Path | None = None,
+    results: Mapping[str, Any] | None = None,
+) -> str:
+    root = project_root or PROJECT_ROOT
+    placeholder_files = _build_placeholder_files(root)
+    result_payload = _default_results_payload()
+    if results:
+        for key in RESULT_KEYS:
+            if key in results:
+                result_payload[key] = results[key]  # type: ignore[index]
+
+    additional_context = {
+        'overview_desmoothing': placeholder_files['overview_desmoothing.md'].read_text(encoding='utf-8'),
+        'overview_approach_A': placeholder_files['overview_approach_A.md'].read_text(encoding='utf-8'),
+        'overview_approach_B': placeholder_files['overview_approach_B.md'].read_text(encoding='utf-8'),
+        'overview_approach_C': placeholder_files['overview_approach_C.md'].read_text(encoding='utf-8'),
+        'overview_approach_D': placeholder_files['overview_approach_D.md'].read_text(encoding='utf-8'),
+        'overview_substitution': placeholder_files['overview_substition.md'].read_text(encoding='utf-8'),
+    }
+
+    analysis_results = {
+        'results_final': result_payload['results_final'],
+        'results_process': {
+            'results_desmoothing': result_payload['results_desmoothing'],
+            'results_approach_A': result_payload['results_approach_A'],
+            'results_approach_B': result_payload['results_approach_B'],
+            'results_approach_C': result_payload['results_approach_C'],
+            'results_approach_D': result_payload['results_approach_D'],
+            'results_substitution': result_payload['results_substitution'],
+        },
+    }
+
+    payload = {
+        'system_prompt': placeholder_files['system_prompt.md'].read_text(encoding='utf-8'),
+        'additional_context': additional_context,
+        'config.yaml': placeholder_files['config.yaml'].read_text(encoding='utf-8'),
+        'Analysis Results': analysis_results,
+    }
+
+    return json.dumps(payload, indent=2)
+
 
 def build_messages(
     *,
     project_root: Path | None = None,
     results: Mapping[str, Any] | None = None,
 ) -> list[dict[str, str]]:
-    rendered = render_prompt(project_root=project_root, results=results)
-    system_message = (
-        'You are a financial analysis assistant. Follow the user instructions carefully '
-        'and respond with valid JSON that matches the requested schema.'
-    )
+    system_message = render_system_message(project_root=project_root, results=results)
+    user_payload = render_user_payload(project_root=project_root, results=results)
     return [
         {'role': 'system', 'content': system_message},
-        {'role': 'user', 'content': rendered},
+        {'role': 'user', 'content': user_payload},
     ]
 
 
-__all__ = ['render_prompt', 'build_messages']
+def render_prompt(
+    *,
+    project_root: Path | None = None,
+    results: Mapping[str, Any] | None = None,
+) -> str:
+    return render_user_payload(project_root=project_root, results=results)
+
+
+__all__ = ['render_system_message', 'render_user_payload', 'render_prompt', 'build_messages', 'RESULT_KEYS']

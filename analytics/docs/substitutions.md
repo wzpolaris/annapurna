@@ -60,37 +60,73 @@ IWV (Russell 3000 - Total Market)
 
 ## Configuration
 
-### Selection Universe (config.yaml)
-Assets available for initial model selection:
+### Universe and substitions (config.yaml):
 ```yaml
-universe:
-  tickers:
-    - IWF   # R1000 Growth
-    - IWD   # R1000 Value
-    - IWM   # R2000 Total
-    # IWB excluded - composite
+  universe:
+    # Representative ETFs for spanning indices
+    # NOTE: Selection strategy varies by asset class:
+    #   - Large Cap: Bottom-up (IWF, IWD) → test consolidation to IWB or SPY (best substitute wins)
+    #   - Small Cap: Top-down (IWM) → test expansion to IWO, IWN
+    tickers:
+      # SPY excluded from initial - tested as substitute for IWF+IWD
+      - IWM   # US Small Cap Russell 2000 Total (top-down: may expand to IWO+IWN)
+      - IWF   # US Large Growth (Russell 1000 Growth) - bottom-up
+      - IWD   # US Large Value (Russell 1000 Value) - bottom-up
+      # IWB, SPY excluded - both tested as substitutes for IWF+IWD, best one used
+      # IWO, IWN in data but excluded - tested in top-down expansion
+      - EFA   # Developed ex-US
+      - EEM   # Emerging Markets
+      - VNQI  # Global ex-US RE
+      - AGG   # US Aggregate Bond
+      - IEF   # 7-10Y Treasury
+      - LQD   # Investment Grade Credit
+      - HYG   # High Yield
+      - BNDX  # Global ex-US Bond (hedged)
+      - TIP   # TIPS
+      - DBC   # Commodities
+      - BIL   # Cash / T-Bills (RF proxy)
+
+    # Expansion/consolidation assets (available for data but excluded from initial selection)
+    substitution_only:
+      - IWB   # Russell 1000 Total (consolidation target for IWF+IWD)
+      - SPY   # S&P 500 (alternative consolidation target for IWF+IWD)
+      - IWO   # Russell 2000 Growth (expansion target for IWM)
+      - IWN   # Russell 2000 Value (expansion target for IWM)
+      - IWV   # Russell 3000 Total Market (future consolidation)
+
+
+  substitutions:
+    # Support both bottom-up (consolidation) and top-down (expansion)
+
+    # Level 1a: Bottom-up consolidation - Large Cap Style (IWB vs SPY)
+    - name: "R1000 for Large Growth+Value"
+      direction: "bottom-up"  # consolidate components into substitute
+      substitute: "IWB"
+      components: ["IWF", "IWD"]
+      description: "Replace Russell 1000 Growth and Value with Russell 1000 Total"
+      r2_threshold: 0.001
+      level: 1
+
+    - name: "SPY for Large Growth+Value"
+      direction: "bottom-up"  # consolidate components into substitute
+      substitute: "SPY"
+      components: ["IWF", "IWD"]
+      description: "Replace Russell 1000 Growth and Value with S&P 500"
+      r2_threshold: 0.001
+      level: 1
+
+    # Level 1b: Top-down expansion - Small Cap Style
+    - name: "Small Growth+Value for R2000"
+      direction: "top-down"  # expand substitute into components
+      substitute: "IWM"
+      components: ["IWO", "IWN"]
+      description: "Expand Russell 2000 Total into Growth and Value components"
+      r2_threshold: 0.001
+      level: 1
+
 ```
 
-### Substitution-Only Assets
-Available for substitution testing but excluded from initial selection:
-```yaml
-universe:
-  substitution_only:
-    - IWB   # R1000 Total
-    - IWO   # R2000 Growth
-    - IWN   # R2000 Value
-    - IWV   # R3000 Total
-```
 
-### Substitution Rules
-```yaml
-substitutions:
-  - name: "R1000 for Large Growth+Value"
-    substitute: "IWB"
-    components: ["IWF", "IWD"]
-    level: 1
-    r2_threshold: 0.001
-```
 
 ## Interpretation
 
