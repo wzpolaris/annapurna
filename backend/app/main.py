@@ -57,6 +57,15 @@ async def chat(request: ChatRequest) -> ChatResponse:
         if is_mock:
             logger.info('Generating mock response blocks')
             outputs = generate_mock_blocks(request.space_key)
+
+        # ################################################################
+        # RBSA routing
+        # ################################################################
+        elif request.message.strip().lower().startswith('nisbot'):
+            from analytics.chat_router_rbsa import process_message
+            forwarded_message = request.message.strip()[6:].strip()
+            outputs = process_message(forwarded_message)
+
         else:
             assistant_message = await generate_chat_response(
                 request.message,

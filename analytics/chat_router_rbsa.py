@@ -8,7 +8,7 @@ from typing import Dict, Mapping, Optional
 #from dotenv import load_dotenv
 from openai import OpenAI
 
-from .chat_openai_rbsa import DEFAULT_MODEL, _llm_summarize, _get_rbsa_results()
+from .chat_openai_rbsa import DEFAULT_MODEL, llm_summarize, get_rbsa_results
 #from .rbsa.rbsa_pipeline import rbsa_main
 
 RBSA_TRIGGER_PATTERN = re.compile(r'\b(rbsa|return|returns|analysis|style)\b', re.IGNORECASE)
@@ -53,6 +53,7 @@ def process_message(message: str) -> str:
     text = message.lower().strip()
 
     if _request_rbsa(text):
+        print('chat router: full RBSA analysis requested.')
         return _run_rbsa()
 
     # check for report requested
@@ -67,7 +68,9 @@ def process_message(message: str) -> str:
 def _run_rbsa() -> str:
 
     try:
-        results = _get_rbsa_results()()
+        print('running RBSA analysis pipeline...')
+        results = get_rbsa_results()
+        print('RBSA analysis pipeline completed.')
     except Exception as exc:
         return f'RBSA analysis failed: {exc}'
 
@@ -75,19 +78,12 @@ def _run_rbsa() -> str:
     ROUTER_STATE['latest_summary'] = None
     ROUTER_STATE['latest_validation_errors'] = []
 
-    summary_payload = _llm_summarize
-
-
-    summariser = ROUTER_STATE.get('summariser')
-    summary_payload = (
-        summariser(results)  # type: ignore[operator]
-        if callable(summariser)
-        else _llm_summarize(
-            results,
-            model=str(ROUTER_STATE.get('model') or DEFAULT_MODEL),
-            project_root=_ensure_path(ROUTER_STATE.get('project_root')),
-        )
-    )
+    print('generating summary via LLM...')
+    import time
+    t0 = time.time()
+    summary_payload = llm_summarize(results)
+    t1 = time.time()
+    print(f'LLM summary generation completed in {t1 - t0:.1f} seconds.')
 
     if 'error' in summary_payload:
         return f'Summary generation failed: {summary_payload["error"]}'

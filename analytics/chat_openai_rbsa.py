@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
+#from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence, cast
 
 from openai import OpenAI
@@ -10,7 +10,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from .chat_template_rbsa import RESULT_KEYS, build_llm_messages
 
-USE_MOCK_DATA = True
+USE_MOCK_DATA = False
 
 DEFAULT_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-5')
 
@@ -27,7 +27,7 @@ def _get_mock_results() -> Mapping[str, Any]:
     }
 
 
-def _get_rbsa_results() -> Mapping[str, Any]:
+def get_rbsa_results() -> Mapping[str, Any]:
 
     if USE_MOCK_DATA:
         print('Using mock RBSA results payload.')
@@ -128,16 +128,17 @@ def _request_openai(
     return parse_json(content)
 
 
-def _llm_summarize(
+def llm_summarize(
     results_payload: Mapping[str, Any],
-    *,
     model: str | None = None,
-    project_root: Path | None = None,
 ) -> Mapping[str, Any]:
     model = model or DEFAULT_MODEL
+    print('building llm messages...')
     messages = build_llm_messages(results=results_payload)
     try:
+        print('requesting OpenAI...')
         response_payload = _request_openai(messages, model=model)
+        print('received OpenAI response.')
     except Exception as exc:  # pragma: no cover - network failure
         return {'error': f'OpenAI request failed: {exc}'}
 
@@ -149,9 +150,6 @@ def _llm_summarize(
         }
 
     return {'response': response_payload}
-
-
-
 
 
 def main() -> None:
