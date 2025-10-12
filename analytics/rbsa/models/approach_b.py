@@ -4,11 +4,11 @@ import pandas as pd
 from typing import Dict, Any, List, Tuple
 from sklearn.linear_model import ElasticNetCV
 from sklearn.preprocessing import StandardScaler
-from ..rbsa_utils import hac_se, model_diagnostics
-from ..optimization import nnls_simplex
+from rbsa_utils import hac_se, model_diagnostics
+from optimization import nnls_simplex
 
 def elasticnet_select(X: pd.DataFrame, y: pd.Series, alphas: list, n_lambdas: int, one_se: bool, cv_splits: int = 5, verbose: bool = False) -> List[str]:
-    from ..optimization import nnls_simplex
+    from optimization import nnls_simplex
 
     scaler = StandardScaler(with_mean=True, with_std=True)
     Xs = scaler.fit_transform(X.values)

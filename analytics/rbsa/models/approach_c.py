@@ -2,8 +2,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Tuple
-from ..rbsa_utils import hac_se, model_diagnostics
-from ..optimization import nnls_simplex
+from rbsa_utils import hac_se, model_diagnostics
+from optimization import nnls_simplex
 
 
 def dirichlet_spike_slab_mcmc(

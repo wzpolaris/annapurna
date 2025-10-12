@@ -4,17 +4,24 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
+_own_dir = os.path.dirname(__file__)
+if _own_dir not in sys.path:
+    sys.path.insert(0, _own_dir)
+
+_project_root = os.path.abspath(os.path.join(_own_dir, '..', '..'))
+print(f"Project root: {_project_root}")
+
 if TYPE_CHECKING:
     from .checkpoints import CheckpointRunner
-from .data_loader import load_fund_returns, load_portfolio, download_prices, to_monthly_returns, align_and_merge, compute_excess, compute_portfolio_returns
-from .prelim import winsorize, pca_summary, correlation_clustering, pick_medoids, simple_regime_marks
-from .models.approach_a import approach_A_pipeline
-from .models.approach_b import approach_B_pipeline
-from .models.approach_c import approach_C_pipeline
-from .models.approach_d import approach_D_pipeline
-from .reporting import format_weights
-from .rbsa_utils import Summarizer
-from .desmoothing import desmooth_if_needed
+from data_loader import load_fund_returns, load_portfolio, download_prices, to_monthly_returns, align_and_merge, compute_excess, compute_portfolio_returns
+from prelim import winsorize, pca_summary, correlation_clustering, pick_medoids, simple_regime_marks
+from models.approach_a import approach_A_pipeline, stepwise_nnls
+from models.approach_b import approach_B_pipeline
+from models.approach_c import approach_C_pipeline
+from models.approach_d import approach_D_pipeline
+from reporting import format_weights
+from rbsa_utils import Summarizer
+from desmoothing import desmooth_if_needed
 
 def load_config(path: str) -> Dict[str, Any]:
     with open(path, "r") as f:
@@ -161,14 +168,21 @@ def prepare_data(
 
     return result
 
+
 def run_all_methods(cfg: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
     X, y = data["X"], data["y"]
     results = {}
+    print('beginning approach A...')
     results["A"] = approach_A_pipeline(X, y, cfg)
+    print('beginning approach B...')
     results["B"] = approach_B_pipeline(X, y, cfg)
+    print('beginning approach C...')
     results["C"] = approach_C_pipeline(X, y, cfg)
+    print('beginning approach D...')
     results["D"] = approach_D_pipeline(X, y, cfg)
+    print('completed all approaches')
     return results
+
 
 def summarize_result(res: Dict[str, Any], summarizer: Summarizer) -> str:
     txt = []
@@ -186,40 +200,106 @@ def finalize_results(all_candidates: List[Dict[str, Any]], cfg: Dict[str, Any]) 
     Returns:
         List of candidates sorted by score (best first)
     """
+
+
+def rbsa_main() -> Dict[str, Any]:
+
+    cfg = load_config(os.path.join(_project_root, "config.yaml"))
+
+    data = prepare_data(cfg, _project_root)
+    X, y = data["X"], data["y"]
+
+    results = {}
+    print('beginning approach A...')
+    results["A"] = approach_A_pipeline(X, y, cfg)
+    print('beginning approach B...')
+    results["B"] = approach_B_pipeline(X, y, cfg)
+    print('beginning approach C...')
+    results["C"] = approach_C_pipeline(X, y, cfg)
+    print('beginning approach D...')
+    results["D"] = approach_D_pipeline(X, y, cfg)
+    print('completed all approaches')
+
+    labels = {
+        'A': 'Approach A (Stepwise NNLS)',
+        'B': 'Approach B (Elastic Net + NNLS Refit)',
+        'C': 'Approach C (PCA + NNLS)',
+        'D': 'Approach D (Clustering + Approach A)',
+    }
+
+    summary_results = []
+    for k, v in results.items():
+        print('-'*40)
+        print('summarizing approach', k)
+        weights_formatted = v["weights"].round(3).astype(float).to_dict()
+        diagnostics_rounded = v['diagnostics'].copy()
+        for dkey, v in diagnostics_rounded.items():
+            if isinstance(v, float):
+                diagnostics_rounded[dkey] = round(v, 6)
+        summary = { 
+            "label": labels.get(k),
+            "weights": weights_formatted,
+            "diagnostics": diagnostics_rounded,
+        }
+        summary_results.append(summary)
+
+
     mode = cfg.get("analysis", {}).get("mode", "in_sample")
 
-    for c in all_candidates:
+    for idx, summary in enumerate(summary_results):
         if mode == "in_sample":
-            c["score"] = c.get("diagnostics", {}).get("r2", -np.inf)  # Higher is better
+            score = summary.get("diagnostics", {}).get("r2", -np.inf)
         else:
-            c["score"] = -c.get("diagnostics", {}).get("rmse", np.inf)  # Lower RMSE is better, negate for sorting
+            score = -summary.get("diagnostics", {}).get("rmse", np.inf)
+        summary["score"] = score  # Assign the computed score to the summary    
+        summary_results[idx] = summary
 
-    # Sort descending (higher score = better)
-    return sorted(all_candidates, key=lambda d: d.get("score", -np.inf), reverse=True)
+    sorted_summary_results = sorted(summary_results, key=lambda item: item['score'], reverse=True)
+    for idx, summary in enumerate(sorted_summary_results):
+        summary['rank'] = idx+1
+        sorted_summary_results[idx] = summary
 
-def main(project_root: str) -> Dict[str, Any]:
-    cfg = load_config(os.path.join(project_root, "config.yaml"))
-    data = prepare_data(cfg, project_root)
-    results = run_all_methods(cfg, data)
-    summarizer = Summarizer(
-        backend=cfg["summarization"]["backend"],
-        model=cfg["summarization"]["model"],
-        temperature=cfg["summarization"]["temperature"],
-        system_prompt=cfg["summarization"]["system_prompt"],
-    )
-    for k,v in results.items():
-        v["summary"] = summarize_result(v, summarizer)
-    # Final consolidation with approach labels
-    all_cands = [
-        {"approach": "A", **results["A"]},
-        {"approach": "B", **results["B"]},
-        {"approach": "C", **results["C"]},
-        {"approach": "D", **results["D"]},
-    ]
-    results["final"] = finalize_results(all_cands, cfg)
+    print([(x['rank'], x['score']) for x in sorted_summary_results])
+
+    return sorted_summary_results
+
+
+def format_results(results):
     return results
+    formatted = {}
+    for k,v in results.items():
+        if k != "final":
+            formatted[k] = {
+                "selected": v["selected"],
+                "weights": format_weights(v["weights"]),
+                "diagnostics": v.get("diagnostics", {}),
+                "summary": v.get("summary", "")
+            }
+        else:
+            formatted[k] = [
+                {
+                    "approach": c["approach"],
+                    "selected": c["selected"],
+                    "weights": format_weights(c["weights"]),
+                    "diagnostics": c.get("diagnostics", {}),
+                    "summary": c.get("summary", ""),
+                    "score": c.get("score", None)
+                } for c in v
+            ]
+    return formatted
+
+
+# def make_summary():
+#     summarizer = Summarizer(
+#         backend=cfg["summarization"]["backend"],
+#         model=cfg["summarization"]["model"],
+#         temperature=cfg["summarization"]["temperature"],
+#         system_prompt=cfg["summarization"]["system_prompt"],
+#     )
+
 
 if __name__ == "__main__":
     root = os.path.dirname(os.path.dirname(__file__))
-    out = main(root)
+    os.chdir(root)
+    out = rbsa_main()
     print({k: (list(v["selected"]) if k != "final" else "final") for k,v in out.items() if k in ["A","B","D","final"]})

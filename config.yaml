@@ -2,8 +2,8 @@
 # All tunable parameters live here.
 
 data:
-  fund_returns_csv: "data/input_fund_returns.csv"   # path relative to project root (ignored if portfolio_csv is set)
-  portfolio_csv: "data/portfolio.csv"                # portfolio with ticker,wt columns (set to null to use fund_returns_csv)
+  fund_returns_csv: "analytics/data/input_fund_returns.csv"   # path relative to project root (ignored if portfolio_csv is set)
+  portfolio_csv: "analytics/data/portfolio.csv"                # portfolio with ticker,wt columns (set to null to use fund_returns_csv)
   frequency: "ME"            # 'ME' monthly
   price_download_start: "2006-01-01"
   price_download_end: null  # default: today

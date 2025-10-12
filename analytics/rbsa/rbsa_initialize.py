@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 import os
 from typing import Optional
-from .main_pipeline import load_config
+from .rbsa_pipeline import load_config
 from .rbsa_utils import Summarizer
 from .checkpoints import CheckpointRunner
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 import pandas as pd
 from typing import Dict, Any, List
-from ..prelim import correlation_clustering, pick_medoids
-from .approach_a import approach_A_pipeline
+from prelim import correlation_clustering, pick_medoids
+from models.approach_a import approach_A_pipeline
 
 def approach_D_pipeline(X: pd.DataFrame, y: pd.Series, cfg: Dict[str, Any]) -> Dict[str, Any]:
     best = None

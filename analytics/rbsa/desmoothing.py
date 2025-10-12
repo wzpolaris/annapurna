@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
-from .prelim_diagnostics import test_ar1_autocorrelation, print_ar1_diagnostics
+from prelim_diagnostics import test_ar1_autocorrelation, print_ar1_diagnostics
 
 if TYPE_CHECKING:
     from .checkpoints import CheckpointRunner

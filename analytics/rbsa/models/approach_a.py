@@ -2,8 +2,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Tuple
-from ..rbsa_utils import rolling_origin_splits, hac_se, model_diagnostics
-from ..optimization import nnls_simplex
+from rbsa_utils import rolling_origin_splits, hac_se, model_diagnostics
+from optimization import nnls_simplex
 
 def stepwise_nnls(X: pd.DataFrame, y: pd.Series, max_k: int, sum_to_one: bool, eps_rmse: float, mode: str = "in_sample") -> List[str]:
     candidates = list(X.columns)
