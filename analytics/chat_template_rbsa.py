@@ -20,35 +20,43 @@ RESULT_KEYS = {
 PLACEHOLDER_PATTERN = re.compile(r'\{\{\s*(?:<)?([^>}]+?)(?:>)?\s*\}\}')
 
 
-def _escape_for_json(value: str) -> str:
-    escaped = json.dumps(value)
-    return escaped[1:-1]
+def build_llm_messages(
+    results: Mapping[str, Any] | None = None,
+) -> list[dict[str, str]]:
+    system_context = build_system_context(results=results)
+    user_context = build_user_context(results=results)
+    return [
+        {'role': 'system', 'content': system_context},
+        {'role': 'user', 'content': user_context},
+    ]
 
 
-def _build_placeholder_files(root: Path) -> Dict[str, Path]:
+# ----------------------------------------------------------------
+# --  build sysatem message --
+# ----------------------------------------------------------------
+
+def build_system_context(
+    results: Mapping[str, Any] | None = None,
+) -> str:
+    root = PROJECT_ROOT
+    placeholder_files = helper_build_placeholder_files()
     prompts_dir = root / 'analytics' / 'prompts'
-    mapping: Dict[str, Path] = {
-        'system_prompt.md': prompts_dir / 'system_prompt.md',
-        'llm_instructions.md': prompts_dir / 'llm_instructions.md',
-        'overview_desmoothing.md': prompts_dir / 'overview_desmoothing.md',
-        'overview_approach_A.md': prompts_dir / 'overview_approach_A.md',
-        'overview_approach_B.md': prompts_dir / 'overview_approach_B.md',
-        'overview_approach_C.md': prompts_dir / 'overview_approach_C.md',
-        'overview_approach_D.md': prompts_dir / 'overview_approach_D.md',
-        'overview_substition.md': prompts_dir / 'overview_substitution.md',
-        'config.yaml': root / 'config.yaml',
-    }
-    missing = [name for name, path in mapping.items() if not path.exists()]
-    if missing:
-        joined = ', '.join(missing)
-        raise FileNotFoundError(f'Failed to locate placeholder files: {joined}')
-    return mapping
+    template_path = prompts_dir / 'llm_instructions.md'
+    if not template_path.exists():
+        raise FileNotFoundError(f'Cannot find instructions at {template_path}')
+
+    template = template_path.read_text(encoding='utf-8')
+    result_payload = results or {}
+    # result_payload = _default_results_payload()
+    # if results:
+    #     for key in RESULT_KEYS:
+    #         if key in results:
+    #             result_payload[key] = results[key]  # type: ignore[index]
+
+    return render_system_template(template, placeholder_files=placeholder_files, results=result_payload)
 
 
-def _default_results_payload() -> Dict[str, Any]:
-    return {key: {} for key in RESULT_KEYS}
-
-def _render_template(
+def render_system_template(
     template: str,
     *,
     placeholder_files: Mapping[str, Path],
@@ -57,7 +65,10 @@ def _render_template(
     def replacement(match: re.Match[str]) -> str:
         key = match.group(1)
 
-        if key in results:
+        if key.startswith('overview_'):
+            return _escape_for_json('Overview materials are supplied in the user message payload.')
+
+        if results and key in results:
             return json.dumps(results[key], indent=2)
 
         if key == 'llm_instructions.md':
@@ -66,42 +77,25 @@ def _render_template(
         if key not in placeholder_files:
             return match.group(0)
 
+        print(f"system message build: replacing placeholder: {key}")
         content = placeholder_files[key].read_text(encoding='utf-8')
+
         return _escape_for_json(content)
 
     return PLACEHOLDER_PATTERN.sub(replacement, template)
 
-def render_system_message(
-    *,
-    project_root: Path | None = None,
+
+# ----------------------------------------------------------------
+# --  build user payload --
+# ----------------------------------------------------------------
+
+def build_user_context(
     results: Mapping[str, Any] | None = None,
 ) -> str:
-    root = project_root or PROJECT_ROOT
-    placeholder_files = _build_placeholder_files(root)
-    prompts_dir = root / 'analytics' / 'prompts'
-    template_path = prompts_dir / 'llm_instructions.md'
-    if not template_path.exists():
-        raise FileNotFoundError(f'Cannot find instructions at {template_path}')
-
-    template = template_path.read_text(encoding='utf-8')
-    result_payload = results
-    # result_payload = _default_results_payload()
-    # if results:
-    #     for key in RESULT_KEYS:
-    #         if key in results:
-    #             result_payload[key] = results[key]  # type: ignore[index]
-
-    return _render_template(template, placeholder_files=placeholder_files, results=result_payload)
-
-
-def render_user_payload(
-    *,
-    project_root: Path | None = None,
-    results: Mapping[str, Any] | None = None,
-) -> str:
-    root = project_root or PROJECT_ROOT
-    placeholder_files = _build_placeholder_files(root)
+    
+    placeholder_files = helper_build_placeholder_files()
     result_payload = _default_results_payload()
+
     if results:
         for key in RESULT_KEYS:
             if key in results:
@@ -116,7 +110,7 @@ def render_user_payload(
         'overview_substitution': placeholder_files['overview_substition.md'].read_text(encoding='utf-8'),
     }
 
-    analysis_results = {
+    analysis_results: dict[str, object] = {
         'results_final': result_payload['results_final'],
         'results_process': {
             'results_desmoothing': result_payload['results_desmoothing'],
@@ -128,7 +122,7 @@ def render_user_payload(
         },
     }
 
-    payload = {
+    payload: dict[str, object] = {
         'system_prompt': placeholder_files['system_prompt.md'].read_text(encoding='utf-8'),
         'additional_context': additional_context,
         'config.yaml': placeholder_files['config.yaml'].read_text(encoding='utf-8'),
@@ -137,26 +131,62 @@ def render_user_payload(
 
     return json.dumps(payload, indent=2)
 
+# ----------------------------------------------------------------
+# --  helpers  --
+# ----------------------------------------------------------------
 
-def build_messages(
-    *,
-    project_root: Path | None = None,
-    results: Mapping[str, Any] | None = None,
-) -> list[dict[str, str]]:
-    system_message = render_system_message(project_root=project_root, results=results)
-    user_payload = render_user_payload(project_root=project_root, results=results)
-    return [
-        {'role': 'system', 'content': system_message},
-        {'role': 'user', 'content': user_payload},
-    ]
+def helper_build_placeholder_files() -> Dict[str, Path]:
+    prompts_dir = PROJECT_ROOT / 'analytics' / 'prompts'
+    mapping: Dict[str, Path] = {
+        'system_prompt.md': prompts_dir / 'system_prompt.md',
+        'llm_instructions.md': prompts_dir / 'llm_instructions.md',
+        'config.yaml': PROJECT_ROOT / 'config.yaml',
+        'overview_desmoothing.md': prompts_dir / 'overview_desmoothing.md',
+        'overview_approach_A.md': prompts_dir / 'overview_approach_A.md',
+        'overview_approach_B.md': prompts_dir / 'overview_approach_B.md',
+        'overview_approach_C.md': prompts_dir / 'overview_approach_C.md',
+        'overview_approach_D.md': prompts_dir / 'overview_approach_D.md',
+        'overview_substition.md': prompts_dir / 'overview_substitution.md',
+    }
+    missing = [name for name, path in mapping.items() if not path.exists()]
+    if missing:
+        joined = ', '.join(missing)
+        raise FileNotFoundError(f'Failed to locate placeholder files: {joined}')
+    return mapping
 
 
-def render_prompt(
-    *,
-    project_root: Path | None = None,
-    results: Mapping[str, Any] | None = None,
-) -> str:
-    return render_user_payload(project_root=project_root, results=results)
+def _default_results_payload() -> Dict[str, Any]:
+    return {key: {} for key in RESULT_KEYS}
 
 
-__all__ = ['render_system_message', 'render_user_payload', 'render_prompt', 'build_messages', 'RESULT_KEYS']
+def _escape_for_json(value: str) -> str:
+    escaped = json.dumps(value)
+    return escaped[1:-1]
+
+
+
+# def render_prompt(
+#     *,
+#     project_root: Path | None = None,
+#     results: Mapping[str, Any] | None = None,
+# ) -> str:
+#     return render_user_payload(project_root=project_root, results=results)
+
+
+#__all__ = ['render_system_message', 'render_user_payload', 'render_prompt', 'build_messages', 'RESULT_KEYS']
+
+if __name__ == '__main__':
+
+    from pprint import pprint
+
+    sample = _default_results_payload()
+    sample['results_final'] = {'sample_key': 'sample_value'}
+    msg = build_system_context(results=sample)
+    # print('--- System Message ---')
+    # print(msg)
+    # print('--- User Payload ---')
+    user = build_user_context(results=sample)
+    # print(user)
+    msg = build_llm_messages(results=sample)
+    pprint(msg)
+    print(len(json.dumps(msg)))

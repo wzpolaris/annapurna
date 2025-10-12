@@ -5,15 +5,16 @@ import re
 from pathlib import Path
 from typing import Dict, Mapping, Optional
 
-from .chat_openai_rbsa import DEFAULT_MODEL, summarize_results
-from .rbsa.rbsa_pipeline import rbsa_main
-
+#from dotenv import load_dotenv
 from openai import OpenAI
+
+from .chat_openai_rbsa import DEFAULT_MODEL, _llm_summarize, _get_rbsa_results()
+#from .rbsa.rbsa_pipeline import rbsa_main
 
 RBSA_TRIGGER_PATTERN = re.compile(r'\b(rbsa|return|returns|analysis|style)\b', re.IGNORECASE)
 DETAIL_INDICATORS = ('detail', 'detailed', 'full', 'deeper', 'expand', 'comprehensive')
 
-SECTION_KEYWORDS: Dict[str, tuple[str, ...]] = {
+ADDITIONAL_REPORT_KEYWORDS: Dict[str, tuple[str, ...]] = {
     'final': ('final', 'overall', 'headline', 'summary', 'wrap', 'conclusion'),
     'desmoothing': ('desmooth', 'smoothing', 'geltn', 'autocorrelation', 'ar(1)'),
     'approach_a': ('approach a', 'nnls', 'stepwise'),
@@ -37,21 +38,27 @@ ROUTER_STATE: Dict[str, object] = {
     'latest_results': None,
     'latest_summary': None,
     'latest_validation_errors': [],
+    'model': '',
+    'project_root': None,
+    'summariser': None
 }
+
+# initialize
+ROUTER_STATE['model'] = os.environ['OPENAI_MODEL']
+ROUTER_STATE['project_root'] = Path(__file__).resolve().parent.parent
 
 
 def process_message(message: str) -> str:
 
     text = message.lower().strip()
 
-    # check if rbsa requested
     if _request_rbsa(text):
         return _run_rbsa()
 
     # check for report requested
     report_requested = _request_additional_report(text)
     if report_requested:
-        return _get_report(report_requested)
+        return _get_report(report_requested, text)
 
     # pass through to LLM
     return _llm_passthrough(message)
@@ -60,7 +67,7 @@ def process_message(message: str) -> str:
 def _run_rbsa() -> str:
 
     try:
-        results = rbsa_main()
+        results = _get_rbsa_results()()
     except Exception as exc:
         return f'RBSA analysis failed: {exc}'
 
@@ -68,13 +75,16 @@ def _run_rbsa() -> str:
     ROUTER_STATE['latest_summary'] = None
     ROUTER_STATE['latest_validation_errors'] = []
 
+    summary_payload = _llm_summarize
+
+
     summariser = ROUTER_STATE.get('summariser')
     summary_payload = (
         summariser(results)  # type: ignore[operator]
         if callable(summariser)
-        else summarize_results(
+        else _llm_summarize(
             results,
-            model=ROUTER_STATE.get('model', DEFAULT_MODEL),  # type: ignore[arg-type]
+            model=str(ROUTER_STATE.get('model') or DEFAULT_MODEL),
             project_root=_ensure_path(ROUTER_STATE.get('project_root')),
         )
     )
@@ -89,7 +99,7 @@ def _run_rbsa() -> str:
     ROUTER_STATE['latest_summary'] = response_dict
     ROUTER_STATE['latest_validation_errors'] = summary_payload.get('validation_errors', [])  # type: ignore[arg-type]
 
-    final_section = _get_nested(response_dict, SUMMARY_PATHS['final'])
+    final_section = _get_nested_report(response_dict, SUMMARY_PATHS['final'])
     if not final_section:
         return 'RBSA completed but final summary is unavailable.'
 
@@ -106,9 +116,7 @@ def _run_rbsa() -> str:
 
 
 def _llm_passthrough(message: str) -> str:
-    model = str(ROUTER_STATE.get('model', None))
-    if not model:
-        raise Exception("Model not configured in router state.")
+    model = str(ROUTER_STATE.get('model') or DEFAULT_MODEL)
     client = OpenAI()
     completion = client.chat.completions.create(
         model = model,
@@ -125,9 +133,9 @@ def _request_rbsa(text: str) -> bool:
 
 
 def _request_additional_report(text: str) -> Optional[str]:
-    for section, keywords in SECTION_KEYWORDS.items():
+    for report, keywords in ADDITIONAL_REPORT_KEYWORDS.items():
         if any(keyword in text for keyword in keywords):
-            return section
+            return report
     return None
 
 
@@ -135,16 +143,17 @@ def _is_detailed_request(text: str) -> bool:
     return any(token in text for token in DETAIL_INDICATORS)
 
 
+def _get_report(report: str, text: str) -> str:
 
-def _get_report(section: str) -> str:
-
-    target_path = SUMMARY_PATHS.get(section)
+    target_path = SUMMARY_PATHS.get(report)
     if not target_path:
-        return 'Requested section is not recognised.'
+        return 'Requested report is not recognised.'
 
-    ROUTER_STATE.get('latest_summary')
+    summary = ROUTER_STATE.get('latest_summary', None)
+    if not isinstance(summary, Mapping):
+        return 'No RBSA summary available. Run an RBSA analysis first.'
 
-    section_dict = _get_nested(summary, target_path)
+    section_dict = _get_nested_report(summary, target_path)
     if not section_dict:
         return 'Requested section is unavailable in the latest RBSA summary.'
 
@@ -162,8 +171,8 @@ def _get_report(section: str) -> str:
     return 'Requested summary text is unavailable.'
 
 
-def _get_nested(data: Mapping[str, object], path: tuple[str, ...]) -> Optional[Mapping[str, object]]:
-    current: object = data
+def _get_nested_report(report: Mapping[str, object], path: tuple[str, ...]) -> Optional[Mapping[str, object]]:
+    current: object = report
     for key in path:
         if not isinstance(current, Mapping) or key not in current:
             return None

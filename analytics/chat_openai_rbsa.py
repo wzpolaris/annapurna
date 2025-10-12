@@ -3,19 +3,19 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Mapping, Sequence
+from typing import Any, Dict, Mapping, Sequence, cast
 
-from dotenv import load_dotenv
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
-from .chat_template_rbsa import RESULT_KEYS, build_messages
+from .chat_template_rbsa import RESULT_KEYS, build_llm_messages
 
-USE_MOCK_DATA = False
+USE_MOCK_DATA = True
 
 DEFAULT_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-5')
 
 
-def _mock_results() -> Mapping[str, Any]:
+def _get_mock_results() -> Mapping[str, Any]:
     return {
         'results_final': {},
         'results_desmoothing': {},
@@ -27,15 +27,17 @@ def _mock_results() -> Mapping[str, Any]:
     }
 
 
-def _load_results(project_root: Path | None) -> Mapping[str, Any]:
+def _get_rbsa_results() -> Mapping[str, Any]:
+
     if USE_MOCK_DATA:
         print('Using mock RBSA results payload.')
-        return _mock_results()
+        return _get_mock_results()
 
     try:
         from .rbsa.rbsa_pipeline import rbsa_main
 
         pipeline_output = rbsa_main()
+
         analysis_results = pipeline_output.get('analysis_results', {})
         process_results = analysis_results.get('results_process', {})
 
@@ -54,7 +56,7 @@ def _load_results(project_root: Path | None) -> Mapping[str, Any]:
     except Exception as exc:
         print(f'RBSA pipeline execution failed: {exc}')
         print('Falling back to mock results payload.')
-        return _mock_results()
+        return _get_mock_results()
 
 
 def _results_has_data_map(results: Mapping[str, Any]) -> Dict[str, bool]:
@@ -111,41 +113,29 @@ def _request_openai(
     def parse_json(text: str) -> dict[str, Any]:
         return json.loads(text)
 
-    try:
-        responses_result = client.responses.create(
-            model=model,
-            input=messages,
-            response_format={'type': 'json_object'},
-        )
-        return parse_json(responses_result.output_text)
-    except (TypeError, AttributeError):
-        chat_messages: Sequence[dict[str, str]] = [
-            {'role': message['role'], 'content': message['content']}
-            for message in messages
-        ]
-        try:
-            chat_response = client.chat.completions.create(
-                model=model,
-                messages=chat_messages,
-                response_format={'type': 'json_object'},
-            )
-        except TypeError:
-            chat_response = client.chat.completions.create(
-                model=model,
-                messages=chat_messages,
-            )
-        content = chat_response.choices[0].message.content or '{}'
-        return parse_json(content)
+    # Convert messages to the correct format for OpenAI
+    raw_messages = [
+        {'role': message['role'], 'content': message['content']}
+        for message in messages
+    ]
+    chat_messages = cast(Sequence[ChatCompletionMessageParam], raw_messages)
+
+    chat_response = client.chat.completions.create(
+        model=model,
+        messages=chat_messages,
+    )
+    content = chat_response.choices[0].message.content or '{}'
+    return parse_json(content)
 
 
-def summarize_results(
+def _llm_summarize(
     results_payload: Mapping[str, Any],
     *,
     model: str | None = None,
     project_root: Path | None = None,
 ) -> Mapping[str, Any]:
     model = model or DEFAULT_MODEL
-    messages = build_messages(project_root=project_root, results=results_payload)
+    messages = build_llm_messages(results=results_payload)
     try:
         response_payload = _request_openai(messages, model=model)
     except Exception as exc:  # pragma: no cover - network failure
@@ -161,12 +151,6 @@ def summarize_results(
     return {'response': response_payload}
 
 
-def run_llm(model: str, project_root: Path | None = None) -> Mapping[str, Any]:
-    results_payload = _load_results(project_root)
-    summary = summarize_results(results_payload, model=model, project_root=project_root)
-    if 'response' in summary:
-        summary['results_payload'] = results_payload
-    return summary
 
 
 
@@ -197,6 +181,3 @@ def main() -> None:
 if __name__ == '__main__':
 
     main()
-
-
-__all__ = ['summarize_results', 'run_llm', 'DEFAULT_MODEL']
