@@ -64,7 +64,7 @@ def _render_template(
             return _escape_for_json('Provided via system role (see instructions above).')
 
         if key not in placeholder_files:
-            raise KeyError(f'Unsupported placeholder: {key}')
+            return match.group(0)
 
         content = placeholder_files[key].read_text(encoding='utf-8')
         return _escape_for_json(content)
@@ -84,11 +84,12 @@ def render_system_message(
         raise FileNotFoundError(f'Cannot find instructions at {template_path}')
 
     template = template_path.read_text(encoding='utf-8')
-    result_payload = _default_results_payload()
-    if results:
-        for key in RESULT_KEYS:
-            if key in results:
-                result_payload[key] = results[key]  # type: ignore[index]
+    result_payload = results
+    # result_payload = _default_results_payload()
+    # if results:
+    #     for key in RESULT_KEYS:
+    #         if key in results:
+    #             result_payload[key] = results[key]  # type: ignore[index]
 
     return _render_template(template, placeholder_files=placeholder_files, results=result_payload)
 
@@ -131,7 +132,7 @@ def render_user_payload(
         'system_prompt': placeholder_files['system_prompt.md'].read_text(encoding='utf-8'),
         'additional_context': additional_context,
         'config.yaml': placeholder_files['config.yaml'].read_text(encoding='utf-8'),
-        'Analysis Results': analysis_results,
+        'analysis_results': analysis_results,
     }
 
     return json.dumps(payload, indent=2)

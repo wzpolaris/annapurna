@@ -261,41 +261,26 @@ def rbsa_main() -> Dict[str, Any]:
 
     print([(x['rank'], x['score']) for x in sorted_summary_results])
 
-    return sorted_summary_results
+    results_final = sorted_summary_results[0]
+      
+    _analysis_results = {
+        "analysis_results": {}
+    }
 
+    _analysis_results["analysis_results"]["results_final"] = results_final
 
-def format_results(results):
-    return results
-    formatted = {}
-    for k,v in results.items():
-        if k != "final":
-            formatted[k] = {
-                "selected": v["selected"],
-                "weights": format_weights(v["weights"]),
-                "diagnostics": v.get("diagnostics", {}),
-                "summary": v.get("summary", "")
-            }
-        else:
-            formatted[k] = [
-                {
-                    "approach": c["approach"],
-                    "selected": c["selected"],
-                    "weights": format_weights(c["weights"]),
-                    "diagnostics": c.get("diagnostics", {}),
-                    "summary": c.get("summary", ""),
-                    "score": c.get("score", None)
-                } for c in v
-            ]
-    return formatted
+    results_process = {}
+    results_process["results_desmoothing"] = {}
+    results_process["results_approach_A"] = summary_results[0]
+    results_process["results_approach_B"] = summary_results[1]
+    results_process["results_approach_C"] = summary_results[2]
+    results_process["results_approach_D"] = summary_results[3]
+    results_process["results_substitution"] = {}
 
+    _analysis_results["analysis_results"]["results_process"] = results_process
 
-# def make_summary():
-#     summarizer = Summarizer(
-#         backend=cfg["summarization"]["backend"],
-#         model=cfg["summarization"]["model"],
-#         temperature=cfg["summarization"]["temperature"],
-#         system_prompt=cfg["summarization"]["system_prompt"],
-#     )
+    return _analysis_results
+
 
 
 if __name__ == "__main__":

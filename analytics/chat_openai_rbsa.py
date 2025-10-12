@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import json
 import os
 from pathlib import Path
@@ -9,9 +8,11 @@ from typing import Any, Dict, Mapping, Sequence
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .openai_template import RESULT_KEYS, build_messages
+from .chat_template_rbsa import RESULT_KEYS, build_messages
 
-DEFAULT_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
+USE_MOCK_DATA = False
+
+DEFAULT_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-5')
 
 
 def _mock_results() -> Mapping[str, Any]:
@@ -24,6 +25,36 @@ def _mock_results() -> Mapping[str, Any]:
         'results_approach_D': {},
         'results_substitution': {},
     }
+
+
+def _load_results(project_root: Path | None) -> Mapping[str, Any]:
+    if USE_MOCK_DATA:
+        print('Using mock RBSA results payload.')
+        return _mock_results()
+
+    try:
+        from .rbsa.rbsa_pipeline import rbsa_main
+
+        pipeline_output = rbsa_main()
+        analysis_results = pipeline_output.get('analysis_results', {})
+        process_results = analysis_results.get('results_process', {})
+
+        flattened = {
+            'results_final': analysis_results.get('results_final', {}),
+            'results_desmoothing': process_results.get('results_desmoothing', {}),
+            'results_approach_A': process_results.get('results_approach_A', {}),
+            'results_approach_B': process_results.get('results_approach_B', {}),
+            'results_approach_C': process_results.get('results_approach_C', {}),
+            'results_approach_D': process_results.get('results_approach_D', {}),
+            'results_substitution': process_results.get('results_substitution', {}),
+        }
+
+        print('Loaded RBSA pipeline results.')
+        return flattened
+    except Exception as exc:
+        print(f'RBSA pipeline execution failed: {exc}')
+        print('Falling back to mock results payload.')
+        return _mock_results()
 
 
 def _results_has_data_map(results: Mapping[str, Any]) -> Dict[str, bool]:
@@ -70,10 +101,11 @@ def _validate_response(
     return errors
 
 
-def run_llm(model: str, project_root: Path | None = None) -> dict[str, Any]:
-    results_payload = _mock_results()
-    messages = build_messages(project_root=project_root, results=results_payload)
-
+def _request_openai(
+    messages: Sequence[Mapping[str, str]],
+    *,
+    model: str,
+) -> Mapping[str, Any]:
     client = OpenAI()
 
     def parse_json(text: str) -> dict[str, Any]:
@@ -85,7 +117,7 @@ def run_llm(model: str, project_root: Path | None = None) -> dict[str, Any]:
             input=messages,
             response_format={'type': 'json_object'},
         )
-        response_payload = parse_json(responses_result.output_text)
+        return parse_json(responses_result.output_text)
     except (TypeError, AttributeError):
         chat_messages: Sequence[dict[str, str]] = [
             {'role': message['role'], 'content': message['content']}
@@ -103,7 +135,21 @@ def run_llm(model: str, project_root: Path | None = None) -> dict[str, Any]:
                 messages=chat_messages,
             )
         content = chat_response.choices[0].message.content or '{}'
-        response_payload = parse_json(content)
+        return parse_json(content)
+
+
+def summarize_results(
+    results_payload: Mapping[str, Any],
+    *,
+    model: str | None = None,
+    project_root: Path | None = None,
+) -> Mapping[str, Any]:
+    model = model or DEFAULT_MODEL
+    messages = build_messages(project_root=project_root, results=results_payload)
+    try:
+        response_payload = _request_openai(messages, model=model)
+    except Exception as exc:  # pragma: no cover - network failure
+        return {'error': f'OpenAI request failed: {exc}'}
 
     validation_errors = _validate_response(results_payload, response_payload)
     if validation_errors:
@@ -112,30 +158,45 @@ def run_llm(model: str, project_root: Path | None = None) -> dict[str, Any]:
             'response': response_payload
         }
 
-    return response_payload
+    return {'response': response_payload}
+
+
+def run_llm(model: str, project_root: Path | None = None) -> Mapping[str, Any]:
+    results_payload = _load_results(project_root)
+    summary = summarize_results(results_payload, model=model, project_root=project_root)
+    if 'response' in summary:
+        summary['results_payload'] = results_payload
+    return summary
 
 
 
 def main() -> None:
-    load_dotenv()
+    pass
 
-    parser = argparse.ArgumentParser(description='Call OpenAI to summarise RBSA outputs.')
-    parser.add_argument(
-        '--model',
-        default=DEFAULT_MODEL,
-        help='Model identifier to use (default: %(default)s)',
-    )
-    parser.add_argument(
-        '--project-root',
-        type=Path,
-        default=None,
-        help='Optional override for the project root directory.',
-    )
-    args = parser.parse_args()
+    # load_dotenv()
 
-    result = run_llm(model=args.model, project_root=args.project_root)
-    print(json.dumps(result, indent=2))
+    # parser = argparse.ArgumentParser(description='Call OpenAI to summarise RBSA outputs.')
+    # parser.add_argument(
+    #     '--model',
+    #     default=DEFAULT_MODEL,
+    #     help='Model identifier to use (default: %(default)s)',
+    # )
+    # parser.add_argument(
+    #     '--project-root',
+    #     type=Path,
+    #     default=None,
+    #     help='Optional override for the project root directory.',
+    # )
+    # args = parser.parse_args()
+
+    # result = run_llm(model=args.model, project_root=args.project_root)
+
+    # print(json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':
+
     main()
+
+
+__all__ = ['summarize_results', 'run_llm', 'DEFAULT_MODEL']

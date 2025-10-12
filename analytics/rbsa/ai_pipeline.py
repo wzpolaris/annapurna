@@ -57,7 +57,10 @@ def ai_summarize(results):
 
 
 def ai_main():
+
     resp = rbsa_main()
+
+
     s  = 'what is the capital of france?'
     response = call_llm(s)
     return response
