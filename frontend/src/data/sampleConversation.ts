@@ -14,21 +14,20 @@ export const initialConversation: ConversationPair[] = [
       role: 'user',
       author: 'You',
       content:
-        'What React-based frameworks should I consider for layout and components for a web app?',
-      timestamp: formatTime(32)
+        'Where is Paris?'
     },
     assistant: {
       id: 'pair-1-assistant',
       role: 'assistant',
       author: 'Atlas',
       content:
-        'Great question! For versatile UI work consider Mantine, MUI, Chakra UI, or Radix. Each ships accessible primitives and has strong community momentum as of 2025.',
+        'Hmmmm.... Texas !! .. just kidding France 🇫🇷!!!',
       blocks: [
         {
           id: 'pair-1-assistant-block-0',
           type: 'markdown',
           content:
-            'Great question! For versatile UI work consider Mantine, MUI, Chakra UI, or Radix. Each ships accessible primitives and has strong community momentum as of 2025.'
+            'Hmmmm.... Texas !! .. just kidding France 🇫🇷!!!',
         }
       ],
       timestamp: formatTime(31)
@@ -41,7 +40,7 @@ export const initialConversation: ConversationPair[] = [
       role: 'user',
       author: 'You',
       content:
-        'Which one is the easiest to customize for a productivity dashboard like the one above?',
+        'When did the Red Sox first win the World Series?',
       timestamp: formatTime(24)
     },
     assistant: {
@@ -49,13 +48,13 @@ export const initialConversation: ConversationPair[] = [
       role: 'assistant',
       author: 'Atlas',
       content:
-        'Mantine and Chakra favor rapid customization. Mantine ships opinionated themes plus CSS-in-JS primitives, making it quick to restyle sidebars, cards, and chat panes.',
+        'In 1903, the Boston Americans (now known as the Red Sox) won the first-ever World Series by defeating the Pittsburgh Pirates in a best-of-nine series, five games to three.',
       blocks: [
         {
           id: 'pair-2-assistant-block-0',
           type: 'markdown',
           content:
-            'Mantine and Chakra favor rapid customization. Mantine ships opinionated themes plus CSS-in-JS primitives, making it quick to restyle sidebars, cards, and chat panes.'
+            'In 1903, the Boston Americans (now known as the Red Sox) won the first-ever World Series by defeating the Pittsburgh Pirates in a best-of-nine series, five games to three.',
         }
       ],
       timestamp: formatTime(23)
@@ -68,7 +67,7 @@ export const initialConversation: ConversationPair[] = [
       role: 'user',
       author: 'You',
       content:
-        'Could you suggest a sensible folder structure for keeping chat features organized?',
+        'Is Pluto a planet?',
       timestamp: formatTime(12)
     },
     assistant: {
@@ -76,13 +75,13 @@ export const initialConversation: ConversationPair[] = [
       role: 'assistant',
       author: 'Atlas',
       content:
-        'Sure! Split shared types, reusable components, and feature configs. For instance, keep navigation data in `data/`, UI pieces in `components/`, and chat helpers in `utils/`.',
+        'Well it depends who you ask! The International Astronomical Union reclassified Pluto in 2006, because it has not "cleared its neighborhood," one of the criteria established to be a planet. However, many of us still affectionately consider Pluto the ninth planet in our solar system.',
       blocks: [
         {
           id: 'pair-3-assistant-block-0',
           type: 'markdown',
           content:
-            'Sure! Split shared types, reusable components, and feature configs. For instance, keep navigation data in `data/`, UI pieces in `components/`, and chat helpers in `utils/`.'
+            'Well it depends who you ask! The International Astronomical Union reclassified Pluto in 2006, because it has not "cleared its neighborhood," one of the criteria established to be a planet. However, many of us still affectionately consider Pluto the ninth planet in our solar system.',
         },
         {
           id: 'pair-3-assistant-block-1',

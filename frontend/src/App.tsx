@@ -17,7 +17,7 @@ import { conversationExchangeTitleColor } from './theme/colors';
 type TablerIconComponent = typeof IconSearch;
 
 const homePrompt =
-  'What react based frameworks should I consider for layout and components for a web app';
+  '';
 import {
   primaryNavigation,
   secondaryNavigation
@@ -75,7 +75,7 @@ export default function App() {
   const headerText = isChatView
     ? activeSpaceKey !== DEFAULT_SPACE_KEY && activeSpaceTitle
       ? activeSpaceTitle
-      : `Home – ${homePrompt}`
+      : `Home ${homePrompt}`
     : activeSpaceTitle ?? 'Choose an analysis workspace to launch.';
 
   const navigationSections = useMemo(

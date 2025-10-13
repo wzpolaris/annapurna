@@ -79,13 +79,24 @@ async def generate_chat_response(
 
     logger.info('Requesting completion from OpenAI model %s', OPENAI_MODEL)
     response = await asyncio.to_thread(
-        _client.chat.completions.create,
+        _client.responses.create,
         model=OPENAI_MODEL,
-        messages=messages,
-        temperature=0.4,
+        input=messages,
     )
 
-    choice = response.choices[0]
-    content = choice.message.content or ''
+    content = (getattr(response, 'output_text', None) or '').strip()
+    if not content and getattr(response, 'output', None):
+        # Fall back to concatenating any text segments that may be present.
+        parts: list[str] = []
+        for item in getattr(response, 'output', []):
+            message = getattr(item, 'message', None)
+            if message is None:
+                continue
+            for segment in getattr(message, 'content', []):
+                if getattr(segment, 'type', None) in {'output_text', 'text'}:
+                    text = getattr(segment, 'text', '') or ''
+                    parts.append(text)
+        content = ''.join(parts).strip()
+
     logger.info('OpenAI response received (%d characters)', len(content))
-    return content.strip()
+    return content
