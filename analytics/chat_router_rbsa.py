@@ -63,6 +63,7 @@ def process_message(message: str) -> str:
     # check for report requested
     report_requested = request_additional_report(text)
     if report_requested:
+        time.sleep(2)
         return _get_report(report_requested, text)
 
     # pass through to LLM

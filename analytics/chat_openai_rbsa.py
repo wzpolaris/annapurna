@@ -42,9 +42,13 @@ def short_circuit_read():
         cache_path = Path(__file__).parent.parent / '_cache_diskcache' / 'short_circuit'
         time.sleep(SHORT_CIRCUIT_TIME)
         with open(cache_path / 'short_circuit.pkl', 'rb') as f:
-            return pickle.load(f)
+            response_payload = pickle.load(f)
     except:
-        return None
+        response_payload = None
+    if response_payload is not None:
+        logger.info('Using short-circuited response payload.')
+    return response_payload
+
         
 def short_circuit_write(obj: Any):
     try:
@@ -53,6 +57,7 @@ def short_circuit_write(obj: Any):
         cache_path = Path(__file__).parent.parent / '_cache_diskcache' / 'short_circuit'
         with open(cache_path / 'short_circuit.pkl', 'wb') as f:
             pickle.dump(obj, f)
+        logger.info('Writing response payload for short-circuit.')
         return None
     except:
         return None
