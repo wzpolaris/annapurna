@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from pathlib import Path
 from typing import Dict, Mapping, Optional
 
@@ -71,7 +72,6 @@ def process_message(message: str) -> str:
 
 
 def run_rbsa() -> str:
-
     try:
         logger.info('running RBSA analysis pipeline...')
         results = get_rbsa_results()

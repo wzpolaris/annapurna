@@ -56,6 +56,52 @@ export const initialConversation: ConversationPair[] = [
           content:
             'In 1903, the Boston Americans (now known as the Red Sox) won the first-ever World Series by defeating the Pittsburgh Pirates in a best-of-nine series, five games to three.',
         }
+        // ,
+        // {
+        //   id: 'pair-2-assistant-block-1',
+        //   type: 'queryButtons',
+        //   content: 'RedSox World Series Championships',
+        //   buttons: [
+        //     {
+        //       id: 'pair-2-assistant-block-1-1903',
+        //       label: '1903',
+        //       submission: 'Tell me about RedSox 1903 World Series Championship',
+        //       userMessage: 'Tell me about RedSox 1903 World Series Championship'
+        //     },
+        //     {
+        //       id: 'pair-2-assistant-block-1-1912',
+        //       label: '1912',
+        //       submission: 'Tell me about RedSox 1912 World Series Championship',
+        //       userMessage: 'Tell me about RedSox 1912 World Series Championship'
+        //     },
+        //     {
+        //       id: 'pair-2-assistant-block-1-1915',
+        //       label: '1915',
+        //       submission: 'Tell me about RedSox 1915 World Series Championship',
+        //       userMessage: 'Tell me about RedSox 1915 World Series Championship'
+        //     },
+        //     {
+        //       id: 'pair-2-assistant-block-1-1916',
+        //       label: '1916',
+        //       submission: 'Tell me about RedSox 1916 World Series Championship',
+        //       userMessage: 'Tell me about RedSox 1916 World Series Championship'
+        //     },
+        //     {
+        //       id: 'pair-2-assistant-block-1-1918',
+        //       label: '1918',
+        //       submission: 'Tell me about RedSox 1918 World Series Championship',
+        //       userMessage: 'Tell me about RedSox 1918 World Series Championship'
+        //     },
+        //     // ,
+        //     // {
+        //     //   id: 'pair-3-assistant-block-1-no',
+        //     //   label: 'No thank you',
+        //     //   submission: '',
+        //     //   userMessage: ''
+        //     // }
+        //   ]
+        // }
+
       ],
       timestamp: formatTime(23)
     }
@@ -90,16 +136,17 @@ export const initialConversation: ConversationPair[] = [
           buttons: [
             {
               id: 'pair-3-assistant-block-1-yes',
-              label: 'Yes, expand it',
-              submission: 'mock provide additional detail',
-              userMessage: 'Provide additional detail'
-            },
-            {
-              id: 'pair-3-assistant-block-1-no',
-              label: 'No thank you',
-              submission: 'mock no additional detail needed',
-              userMessage: 'No additional detail needed'
+              label: 'Yes, tell me more',
+              submission: 'Tell me more about Pluto',
+              userMessage: 'Tell me more about Pluto'
             }
+            // ,
+            // {
+            //   id: 'pair-3-assistant-block-1-no',
+            //   label: 'No thank you',
+            //   submission: '',
+            //   userMessage: ''
+            // }
           ]
         }
       ],
