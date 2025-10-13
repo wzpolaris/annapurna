@@ -141,7 +141,7 @@ substitutions:
 summarization:
   # backend: "openai" or "offline"
   backend: "openai"
-  model: "gpt-5" #"gpt-5"  # Latest
+  model: "gpt-5-mini" #"gpt-5"  # Latest
   temperature: 0.3
   system_prompt: |
     You are an expert quantitative analyst specializing in returns-based style analysis.

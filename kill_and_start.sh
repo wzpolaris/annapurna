@@ -9,7 +9,22 @@ for PORT in 5173 4000 8000; do
   PID=$(lsof -ti tcp:"$PORT" || true)
   if [[ -n "${PID}" ]]; then
     echo "Killing process on port ${PORT} (PID: ${PID})"
-    kill "${PID}" || true
+    # PID can contain multiple lines; kill each process individually
+    kill $PID || true
+
+    # Wait for processes to exit cleanly; force kill if needed
+    for attempt in {1..10}; do
+      REMAINING=$(lsof -ti tcp:"$PORT" || true)
+      if [[ -z "${REMAINING}" ]]; then
+        break
+      fi
+      if [[ "${attempt}" -eq 10 ]]; then
+        echo "Force killing stubborn process on port ${PORT} (PID: ${REMAINING})"
+        kill -9 $REMAINING || true
+      else
+        sleep 0.5
+      fi
+    done
   fi
 done
 
@@ -29,9 +44,12 @@ mkdir -p logs
 )
 
 (
-  cd "${BACKEND_DIR}"
+  #cd "${BACKEND_DIR}"
   echo "Starting FastAPI backend (logs: ../logs/fastapi.log)..."
-  nohup uvicorn app.main:app --reload > ../logs/fastapi.log 2>&1 &
+  nohup uvicorn backend.app.main:app --reload > ./logs/fastapi.log 2>&1 &
 )
 
 echo "All services launched. Check ./logs/*.log for output."
+echo "Frontend (Vite in dev): http://localhost:5173"
+echo "Proxy (Express): http://localhost:4000"
+echo "Backend (FastAPI): http://localhost:8000/docs"

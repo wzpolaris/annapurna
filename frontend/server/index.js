@@ -28,13 +28,20 @@ app.post('/api/chat', async (req, res) => {
           'Content-Type': 'application/json',
           'x-requested-with': 'northfield-frontend'
         },
-        timeout: 30_000
+        timeout: 0, // was 30_000 (30s); 0 disables timeout
       }
     );
 
     res.status(response.status).json(response.data);
   } catch (error) {
     if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        console.warn(
+          '[frontend] Backend request timed out after',
+          error.config?.timeout,
+          'ms'
+        );
+      }
       const status = error.response?.status || 502;
       const message =
         error.response?.data?.message ||

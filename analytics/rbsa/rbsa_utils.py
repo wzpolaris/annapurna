@@ -6,6 +6,8 @@ from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.stats.stattools import durbin_watson
 from statsmodels.regression.linear_model import yule_walker
 
+OPENAI_CONTEXT_MAX_CHARS = 100_000  # Approximate max chars for LLM context (e.g. gpt-4, gpt-5)
+
 def rolling_origin_splits(dates: pd.DatetimeIndex, window: int, horizon: int):
     # yields (train_idx, test_idx)
     for start in range(0, len(dates) - (window + horizon) + 1):
@@ -198,6 +200,11 @@ class Summarizer:
             head = lines[:5]
             return "Offline summary: " + " ".join([l.strip() for l in head])[:500]
         # If 'openai', attempt to call; user must configure OPENAI_API_KEY and install openai
+        max_chars = OPENAI_CONTEXT_MAX_CHARS 
+        if len(text) > max_chars:
+            # TODO: summarize and retry with shorter text ?
+            raise ValueError(f'LLM input exceeds {max_chars} characters. Received {len(text)}.')
+
         try:
             from openai import OpenAI
             client = OpenAI()  # Automatically reads OPENAI_API_KEY from environment
@@ -205,7 +212,7 @@ class Summarizer:
             # Check if using GPT-5 (new Responses API) or GPT-4 (Chat Completions API)
             if self.model.startswith("gpt-5"):
                 # GPT-5 uses the new Responses API
-                prompt = f"{self.system_prompt}\n\n{text[:8000]}"
+                prompt = f"{self.system_prompt}\n\n{text}"
                 resp = client.responses.create(
                     model=self.model,
                     input=prompt,
@@ -220,7 +227,7 @@ class Summarizer:
                     temperature=self.temperature,
                     messages=[
                         {"role": "system", "content": self.system_prompt},
-                        {"role": "user", "content": text[:8000]},
+                        {"role": "user", "content": text},
                     ],
                 )
                 return resp.choices[0].message.content.strip()

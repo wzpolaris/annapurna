@@ -15,6 +15,9 @@ print(f"Project root: {_project_root}")
 
 from rbsa_pipeline import rbsa_main as rbsa_main
 
+OPENAI_CONTEXT_MAX_CHARS = 100_000  # Approximate max chars for LLM context (e.g. gpt-4, gpt-5)
+
+
 def load_config():
     import os
     import yaml
@@ -29,6 +32,10 @@ def load_config():
 
 def call_llm(text :str) -> str:
 
+    max_chars = OPENAI_CONTEXT_MAX_CHARS
+    if len(text) > max_chars:
+        raise ValueError(f'LLM input exceeds {max_chars} characters. Received {len(text)}.')
+
     cfg = load_config()
     model = cfg["summarization"].get("model", "gpt-4")
 
@@ -39,7 +46,7 @@ def call_llm(text :str) -> str:
     # Check if using GPT-5 (new Responses API) or GPT-4 (Chat Completions API)
         # GPT-5 uses the new Responses API
     if model.startswith("gpt-5"):
-        prompt = f"{system_prompt}\n\n{text[:8000]}"
+        prompt = f"{system_prompt}\n\n{text}"
         resp = client.responses.create(
             model=model,
             input=prompt,
@@ -71,4 +78,3 @@ if __name__ == "__main__":
     resp = ai_main()
 
     print(resp)
-

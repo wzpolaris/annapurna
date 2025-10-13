@@ -164,7 +164,6 @@ def _escape_for_json(value: str) -> str:
     return escaped[1:-1]
 
 
-
 # def render_prompt(
 #     *,
 #     project_root: Path | None = None,

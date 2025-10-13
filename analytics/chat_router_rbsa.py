@@ -6,10 +6,14 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional
 
 #from dotenv import load_dotenv
+
 from openai import OpenAI
 
-from .chat_openai_rbsa import DEFAULT_MODEL, llm_summarize, get_rbsa_results
+from .chat_openai_rbsa import DEFAULT_MODEL, rbsa_summarize_results, get_rbsa_results
 #from .rbsa.rbsa_pipeline import rbsa_main
+
+import logging
+logger = logging.getLogger('analytics.rbsa')
 
 RBSA_TRIGGER_PATTERN = re.compile(r'\b(rbsa|return|returns|analysis|style)\b', re.IGNORECASE)
 DETAIL_INDICATORS = ('detail', 'detailed', 'full', 'deeper', 'expand', 'comprehensive')
@@ -52,25 +56,25 @@ def process_message(message: str) -> str:
 
     text = message.lower().strip()
 
-    if _request_rbsa(text):
-        print('chat router: full RBSA analysis requested.')
-        return _run_rbsa()
+    if request_rbsa(text):
+        logger.info('chat router: full RBSA analysis requested.')
+        return run_rbsa()
 
     # check for report requested
-    report_requested = _request_additional_report(text)
+    report_requested = request_additional_report(text)
     if report_requested:
         return _get_report(report_requested, text)
 
     # pass through to LLM
-    return _llm_passthrough(message)
+    return llm_passthrough(message)
 
 
-def _run_rbsa() -> str:
+def run_rbsa() -> str:
 
     try:
-        print('running RBSA analysis pipeline...')
+        logger.info('running RBSA analysis pipeline...')
         results = get_rbsa_results()
-        print('RBSA analysis pipeline completed.')
+        logger.info('RBSA analysis pipeline completed.')
     except Exception as exc:
         return f'RBSA analysis failed: {exc}'
 
@@ -78,12 +82,12 @@ def _run_rbsa() -> str:
     ROUTER_STATE['latest_summary'] = None
     ROUTER_STATE['latest_validation_errors'] = []
 
-    print('generating summary via LLM...')
+    logger.info('generating summary via LLM...')
     import time
     t0 = time.time()
-    summary_payload = llm_summarize(results)
+    summary_payload = rbsa_summarize_results(results)
     t1 = time.time()
-    print(f'LLM summary generation completed in {t1 - t0:.1f} seconds.')
+    logger.info(f'LLM summary generation completed in {t1 - t0:.1f} seconds.')
 
     if 'error' in summary_payload:
         return f'Summary generation failed: {summary_payload["error"]}'
@@ -95,7 +99,7 @@ def _run_rbsa() -> str:
     ROUTER_STATE['latest_summary'] = response_dict
     ROUTER_STATE['latest_validation_errors'] = summary_payload.get('validation_errors', [])  # type: ignore[arg-type]
 
-    final_section = _get_nested_report(response_dict, SUMMARY_PATHS['final'])
+    final_section = get_nested_report(response_dict, SUMMARY_PATHS['final'])
     if not final_section:
         return 'RBSA completed but final summary is unavailable.'
 
@@ -111,7 +115,7 @@ def _run_rbsa() -> str:
     return exec_summary
 
 
-def _llm_passthrough(message: str) -> str:
+def llm_passthrough(message: str) -> str:
     model = str(ROUTER_STATE.get('model') or DEFAULT_MODEL)
     client = OpenAI()
     completion = client.chat.completions.create(
@@ -124,11 +128,11 @@ def _llm_passthrough(message: str) -> str:
     return completion.choices[0].message.content or ''
 
 
-def _request_rbsa(text: str) -> bool:
+def request_rbsa(text: str) -> bool:
     return bool(RBSA_TRIGGER_PATTERN.search(text))
 
 
-def _request_additional_report(text: str) -> Optional[str]:
+def request_additional_report(text: str) -> Optional[str]:
     for report, keywords in ADDITIONAL_REPORT_KEYWORDS.items():
         if any(keyword in text for keyword in keywords):
             return report
@@ -149,7 +153,7 @@ def _get_report(report: str, text: str) -> str:
     if not isinstance(summary, Mapping):
         return 'No RBSA summary available. Run an RBSA analysis first.'
 
-    section_dict = _get_nested_report(summary, target_path)
+    section_dict = get_nested_report(summary, target_path)
     if not section_dict:
         return 'Requested section is unavailable in the latest RBSA summary.'
 
@@ -167,7 +171,7 @@ def _get_report(report: str, text: str) -> str:
     return 'Requested summary text is unavailable.'
 
 
-def _get_nested_report(report: Mapping[str, object], path: tuple[str, ...]) -> Optional[Mapping[str, object]]:
+def get_nested_report(report: Mapping[str, object], path: tuple[str, ...]) -> Optional[Mapping[str, object]]:
     current: object = report
     for key in path:
         if not isinstance(current, Mapping) or key not in current:
@@ -183,5 +187,3 @@ def _ensure_path(value: object) -> Optional[Path]:
         return Path(value)
     return None
 
-
-__all__ = ['ROUTER_STATE', 'process_message']

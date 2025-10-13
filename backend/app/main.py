@@ -12,6 +12,22 @@ from .mock_response import generate_mock_blocks
 from .schemas import ChatRequest, ChatResponse, HealthResponse, ResponseBlock
 from .tables import build_space_table
 
+
+#################################################################
+# Hack to include analytics module
+#################################################################
+# import sys
+# from pathlib import Path
+# DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# if str(DEFAULT_PROJECT_ROOT) not in sys.path:
+#     sys.path.insert(1,str(DEFAULT_PROJECT_ROOT))
+#     try:
+#         from analytics.chat_router_rbsa import process_message
+#         print('Imported analytics module.')
+#     except ImportError:
+#         raise Exception('Cannot import analytics module')
+
+
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s %(name)s: %(message)s',
@@ -63,8 +79,11 @@ async def chat(request: ChatRequest) -> ChatResponse:
         # ################################################################
         elif request.message.strip().lower().startswith('nisbot'):
             from analytics.chat_router_rbsa import process_message
-            forwarded_message = request.message.strip()[6:].strip()
-            outputs = process_message(forwarded_message)
+            forwarded = request.message.strip()[6:].strip()
+            summary_text: str = process_message(forwarded)
+            outputs = [
+                ResponseBlock(type='markdown', content=summary_text, altText=None)
+            ]
 
         else:
             assistant_message = await generate_chat_response(

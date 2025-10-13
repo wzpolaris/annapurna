@@ -2,20 +2,38 @@ from __future__ import annotations
 
 import json
 import os
-#from pathlib import Path
+from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence, cast
 
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 from .chat_template_rbsa import RESULT_KEYS, build_llm_messages
+from .rbsa.rbsa_pipeline import rbsa_main
 
-USE_MOCK_DATA = False
+USE_MOCK_DATA = True
 
-DEFAULT_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-5')
+DEFAULT_MODEL = os.environ.get('OPENAI_MODEL')
 
 
-def _get_mock_results() -> Mapping[str, Any]:
+def run_llm(model: str, project_root: Path | None = None) -> Mapping[str, Any]:
+
+    if USE_MOCK_DATA:
+        print('Using mock RBSA results payload.')
+        results_payload = get_mock_results()
+    else:
+        results_payload = get_rbsa_results()
+
+    summary = rbsa_summarize_results(results_payload)
+    if 'response' in summary:
+        # Convert to dict to allow modification
+        result_dict = dict(summary)
+        result_dict['results_payload'] = results_payload
+        return result_dict
+    return summary
+
+
+def get_mock_results() -> Mapping[str, Any]:
     return {
         'results_final': {},
         'results_desmoothing': {},
@@ -29,18 +47,10 @@ def _get_mock_results() -> Mapping[str, Any]:
 
 def get_rbsa_results() -> Mapping[str, Any]:
 
-    if USE_MOCK_DATA:
-        print('Using mock RBSA results payload.')
-        return _get_mock_results()
-
     try:
-        from .rbsa.rbsa_pipeline import rbsa_main
-
         pipeline_output = rbsa_main()
-
         analysis_results = pipeline_output.get('analysis_results', {})
         process_results = analysis_results.get('results_process', {})
-
         flattened = {
             'results_final': analysis_results.get('results_final', {}),
             'results_desmoothing': process_results.get('results_desmoothing', {}),
@@ -50,20 +60,59 @@ def get_rbsa_results() -> Mapping[str, Any]:
             'results_approach_D': process_results.get('results_approach_D', {}),
             'results_substitution': process_results.get('results_substitution', {}),
         }
-
         print('Loaded RBSA pipeline results.')
         return flattened
+    
     except Exception as exc:
         print(f'RBSA pipeline execution failed: {exc}')
         print('Falling back to mock results payload.')
-        return _get_mock_results()
+        return get_mock_results()
 
 
-def _results_has_data_map(results: Mapping[str, Any]) -> Dict[str, bool]:
-    return {key: bool(results.get(key)) for key in RESULT_KEYS}
+def rbsa_summarize_results(
+    results_payload: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    model = str(DEFAULT_MODEL)
+    messages = build_llm_messages(results=results_payload)
+    try:
+        response_payload = call_openai(messages, model=model)
+    except Exception as exc:  # pragma: no cover - network failure
+        return {'error': f'OpenAI request failed: {exc}'}
+    validation_errors = validate_response(results_payload, response_payload)
+    if validation_errors:
+        return {
+            'validation_errors': validation_errors,
+            'response': response_payload
+        }
+    return {'response': response_payload}
 
 
-def _validate_response(
+def call_openai(
+    messages: Sequence[Mapping[str, str]],
+    *,
+    model: str,
+) -> Mapping[str, Any]:
+    client = OpenAI()
+
+    def parse_json(text: str) -> dict[str, Any]:
+        return json.loads(text)
+
+    # Convert messages to the correct format for OpenAI
+    raw_messages = [
+        {'role': message['role'], 'content': message['content']}
+        for message in messages
+    ]
+    chat_messages = cast(Sequence[ChatCompletionMessageParam], raw_messages)
+
+    chat_response = client.chat.completions.create(
+        model=model,
+        messages=chat_messages,
+    )
+    content = chat_response.choices[0].message.content or '{}'
+    return parse_json(content)
+
+
+def validate_response(
     results_payload: Mapping[str, Any],
     response_payload: Mapping[str, Any],
 ) -> list[str]:
@@ -103,53 +152,8 @@ def _validate_response(
     return errors
 
 
-def _request_openai(
-    messages: Sequence[Mapping[str, str]],
-    *,
-    model: str,
-) -> Mapping[str, Any]:
-    client = OpenAI()
-
-    def parse_json(text: str) -> dict[str, Any]:
-        return json.loads(text)
-
-    # Convert messages to the correct format for OpenAI
-    raw_messages = [
-        {'role': message['role'], 'content': message['content']}
-        for message in messages
-    ]
-    chat_messages = cast(Sequence[ChatCompletionMessageParam], raw_messages)
-
-    chat_response = client.chat.completions.create(
-        model=model,
-        messages=chat_messages,
-    )
-    content = chat_response.choices[0].message.content or '{}'
-    return parse_json(content)
-
-
-def llm_summarize(
-    results_payload: Mapping[str, Any],
-    model: str | None = None,
-) -> Mapping[str, Any]:
-    model = model or DEFAULT_MODEL
-    print('building llm messages...')
-    messages = build_llm_messages(results=results_payload)
-    try:
-        print('requesting OpenAI...')
-        response_payload = _request_openai(messages, model=model)
-        print('received OpenAI response.')
-    except Exception as exc:  # pragma: no cover - network failure
-        return {'error': f'OpenAI request failed: {exc}'}
-
-    validation_errors = _validate_response(results_payload, response_payload)
-    if validation_errors:
-        return {
-            'validation_errors': validation_errors,
-            'response': response_payload
-        }
-
-    return {'response': response_payload}
+def _results_has_data_map(results: Mapping[str, Any]) -> Dict[str, bool]:
+    return {key: bool(results.get(key)) for key in RESULT_KEYS}
 
 
 def main() -> None:
@@ -179,3 +183,6 @@ def main() -> None:
 if __name__ == '__main__':
 
     main()
+
+
+__all__ = ['rbsa_summarize_results', 'run_llm', 'DEFAULT_MODEL']
