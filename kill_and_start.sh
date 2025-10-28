@@ -43,11 +43,11 @@ mkdir -p logs
   nohup npm run serve > ../logs/express.log 2>&1 &
 )
 
-(
-  #cd "${BACKEND_DIR}"
-  echo "Starting FastAPI backend (logs: ../logs/fastapi.log)..."
-  nohup uvicorn backend.app.main:app --reload > ./logs/fastapi.log 2>&1 &
-)
+# (
+#   #cd "${BACKEND_DIR}"
+#   echo "Starting FastAPI backend (logs: ../logs/fastapi.log)..."
+#   nohup uvicorn backend.app.main:app --reload > ./logs/fastapi.log 2>&1 &
+# )
 
 echo "All services launched. Check ./logs/*.log for output."
 echo "Frontend (Vite in dev): http://localhost:5173"

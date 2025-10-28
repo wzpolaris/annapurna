@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
@@ -16,8 +15,6 @@ RESULT_KEYS = {
     'results_approach_D',
     'results_substitution',
 }
-
-PLACEHOLDER_PATTERN = re.compile(r'\{\{\s*(?:<)?([^>}]+?)(?:>)?\s*\}\}')
 
 
 def build_llm_messages(
@@ -62,27 +59,46 @@ def render_system_template(
     placeholder_files: Mapping[str, Path],
     results: Mapping[str, Any],
 ) -> str:
-    def replacement(match: re.Match[str]) -> str:
-        key = match.group(1)
-
-        if key.startswith('overview_'):
-            return _escape_for_json('Overview materials are supplied in the user message payload.')
-
-        if results and key in results:
-            return json.dumps(results[key], indent=2)
-
-        if key == 'llm_instructions.md':
-            return _escape_for_json('Provided via system role (see instructions above).')
-
-        if key not in placeholder_files:
-            return match.group(0)
-
-        print(f"system message build: replacing placeholder: {key}")
-        content = placeholder_files[key].read_text(encoding='utf-8')
-
-        return _escape_for_json(content)
-
-    return PLACEHOLDER_PATTERN.sub(replacement, template)
+    content = template
+    
+    # Loop through all possible placeholders and replace them
+    for key, file_path in placeholder_files.items():
+        placeholder = f"{{{{{key}}}}}"
+        if placeholder in content:
+            print(f"system message build: replacing placeholder: {key}")
+            file_content = file_path.read_text(encoding='utf-8')
+            escaped_content = _escape_for_json(file_content)
+            content = content.replace(placeholder, escaped_content)
+    
+    # Handle results placeholders
+    if results:
+        for key, value in results.items():
+            placeholder = f"{{{{{key}}}}}"
+            if placeholder in content:
+                print(f"system message build: replacing result placeholder: {key}")
+                json_content = json.dumps(value, indent=2)
+                content = content.replace(placeholder, json_content)
+    
+    # Handle special overview placeholders
+    overview_keys = [
+        'overview_desmoothing', 'overview_approach_A', 'overview_approach_B',
+        'overview_approach_C', 'overview_approach_D', 'overview_substitution'
+    ]
+    for key in overview_keys:
+        placeholder = f"{{{{{key}}}}}"
+        if placeholder in content:
+            print(f"system message build: replacing overview placeholder: {key}")
+            replacement = _escape_for_json(f'See {key} in the user message additional_context section.')
+            content = content.replace(placeholder, replacement)
+    
+    # Handle special llm_instructions.md placeholder
+    llm_placeholder = "{{llm_instructions.md}}"
+    if llm_placeholder in content:
+        print("system message build: replacing llm_instructions.md placeholder")
+        replacement = _escape_for_json('Provided via system role (see instructions above).')
+        content = content.replace(llm_placeholder, replacement)
+    
+    return content
 
 
 # ----------------------------------------------------------------

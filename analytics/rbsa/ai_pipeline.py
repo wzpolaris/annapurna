@@ -13,7 +13,7 @@ if _own_dir not in sys.path:
 _project_root = os.path.abspath(os.path.join(_own_dir, '..', '..'))
 print(f"Project root: {_project_root}")
 
-from rbsa_pipeline import rbsa_main as rbsa_main
+from rbsa_pipeline import rbsa_run_pipeline as rbsa_run_pipeline
 
 OPENAI_CONTEXT_MAX_CHARS = 100_000  # Approximate max chars for LLM context (e.g. gpt-4, gpt-5)
 
@@ -58,16 +58,7 @@ def call_llm(text :str) -> str:
         raise Exception("Only gpt-5 models are supported currently.")
 
 
-def ai_summarize(results):
-    print(results)
-    pass
-
-
 def ai_main():
-
-    resp = rbsa_main()
-
-
     s  = 'what is the capital of france?'
     response = call_llm(s)
     return response
@@ -76,5 +67,4 @@ def ai_main():
 if __name__ == "__main__":
 
     resp = ai_main()
-
     print(resp)

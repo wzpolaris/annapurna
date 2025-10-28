@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import logging
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -28,11 +29,37 @@ from .tables import build_space_table
 #         raise Exception('Cannot import analytics module')
 
 
+# Configure concurrent logging for multi-worker safety
+try:
+    from concurrent_log_handler import ConcurrentRotatingFileHandler
+    CONCURRENT_LOGGING = True
+except ImportError:
+    CONCURRENT_LOGGING = False
+    print("Warning: concurrent-log-handler not installed. Using standard FileHandler.")
+
+log_dir = Path(__file__).resolve().parent.parent.parent / 'logs'
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / 'fastapi.log'
+
+# Set up concurrent logging
+if CONCURRENT_LOGGING:
+    handler = ConcurrentRotatingFileHandler(
+        log_file,
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+else:
+    handler = logging.FileHandler(log_file, encoding='utf-8')
+
+
+
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s %(name)s: %(message)s',
+    format='[%(asctime)s] %(levelname)s [%(module)s.%(funcName)s:%(lineno)d]: %(message)s',
+    handlers=[handler]
 )
-logger = logging.getLogger('northfield.backend')
+logger = logging.getLogger('main.fastapi')
 
 
 app = FastAPI(
@@ -59,6 +86,7 @@ async def health() -> HealthResponse:
 @app.post('/chat', response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     try:
+
         logger.info(
             'Chat request received',
             extra={
@@ -69,29 +97,28 @@ async def chat(request: ChatRequest) -> ChatResponse:
             }
         )
 
-        is_mock = request.message.strip().lower().startswith('mock')
-        if is_mock:
+        # ################################################################
+        # Mock and LLM bypass check
+        # ################################################################
+        # -- Mock bypass
+        if request.message.strip().lower().startswith('mock'):
             logger.info('Generating mock response blocks')
             outputs = generate_mock_blocks(request.space_key)
-
-        # ################################################################
-        # RBSA routing
-        # ################################################################
-        elif request.message.strip().lower().startswith('nisbot'):
-            from analytics.chat_router_rbsa import process_message
-            forwarded = request.message.strip()[6:].strip()
-            summary_text: str = process_message(forwarded)
-            outputs = [
-                ResponseBlock(type='markdown', content=summary_text, altText=None)
-            ]
-
-        else:
+        # -- LLM bypass
+        elif request.message.strip().lower().startswith('llm'):
             assistant_message = await generate_chat_response(
                 request.message,
                 request.space_title,
                 history=request.history
             )
             outputs = [ResponseBlock(type='markdown', content=assistant_message)]
+        # -- RBSA
+        else:
+            from analytics.chat_router_rbsa import process_message
+            summary_text: str = process_message(request.message)
+            outputs = [
+                ResponseBlock(type='markdown', content=summary_text, altText=None)
+            ]
     except OpenAIConfigurationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - surface unexpected errors

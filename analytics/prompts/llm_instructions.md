@@ -42,33 +42,37 @@ Craft a comprehensive RBSA narrative that summarises the full analytical workflo
 
 ### Hard Rules
 - Populate the `data_flags` object with booleans indicating whether each corresponding `results_*` payload contained data (`true` if non-empty, `false` otherwise).
-- If any of the `data_flags` values is `false`, the **first sentence** of the `Final → Executive Summary` must begin with `**IMPORTANT: No Data Provided**`.
+- If any of the `data_flags` values is `false`, in the `Final → Detailed Summary` create an initial stand-alone paragraph that indicates no results were provided for which ever `data_flags` were false.  Indicate for each with a sentence such as: `**IMPORTANT**: No results for {method}` indicating such.
 - Whenever quantitative data is available, include at least one Markdown table summarising the relevant weights, diagnostics, or metrics for that section. Tables must have descriptive column headers.
 - Each executive summary should contain a minimum of three well-developed paragraphs followed by a concise bullet list of key takeaways. When data supports it, append a Markdown table immediately after the bullet list.
 - Each detailed summary must be substantially longer than its corresponding executive summary, combining paragraphs, bullet lists, and Markdown tables. Explicitly analyse financial and economic implications, risk considerations, and scenario sensitivity.
 - Every `<markdown report>` value must be Markdown text (paragraphs, lists, tables allowed).
 - Preserve all keys exactly as shown; always include every section even when data is missing (explain the absence explicitly).
-- Do not invent numbers—only cite metrics present in the supplied JSON.
+- Do NOT invent numbers—only cite metrics present in the supplied JSON.
 
 ## Component Guidance
 
 ### Final
+
+This is the most important section !!!
+
 **Executive Summary**
-- Deliver three or more tightly reasoned paragraphs evaluating how well the final solution fits the objective.
-- Follow the narrative with a bullet list of the most actionable conclusions (3–5 bullets).
-- Highlight primary financial and economic implications and link them to the observed exposures or diagnostics.
-- Include a Markdown table that captures key quantitative anchors (weights, diagnostics, rankings) when available.
+- Create an executive summary markdown report, with an overall title called "Executive Summary" in bold. Each of the following is to be included in order
+- 1. Markdown table showing the final exposure weights. Include the Index Names as well as the tickers. The title of the table should be "Index Exposures"
+- 2. In 2-3 sentences, succinctly highlight primary financial and economic implications, with comments linked to the observed exposures.
+- 3. Briefly in a single sentence indicate how well the results fit the objective, commenting just on adjusted R-squared. Do Not make a table with other statistical diagnostics in this Executive Summary.
+- 4. ONLY IF RELEVANT: indicate any surprising or unusual results in the exposure weights that deserve specific attention and provide the reason.
 
 **Detailed Summary**
 - Provide a comprehensive discussion that is longer than the executive summary and structured with clear subsections.
-- Walk through the full workflow:
-  1. Desmoothing diagnostics.
-  2. Approaches A–D (≈3–5 sentences each describing method, intuition, strengths/weaknesses).
-  3. Substitution screen.
-  4. Final selection decision.
 - Present detailed metrics and rationale supporting the final result using both narrative and tabular summaries.
 - Expand on financial/economic interpretation, portfolio construction impact, risk considerations, and scenario sensitivities.
-- Conclude with commentary on analysis effectiveness and explicit next steps or monitoring items.
+- Walk through the full workflow:
+  1. Desmoothing diagnostics.
+  2. Approaches A–D. Include a paragraph of approximately 2-3 sentences on each, describing method and primary results, and a table for each showing the key results of the respective approach, ending with the exposure weights the method would recommend.
+  3. Provide details on the Substitution screen.
+  4. Final selection decision.
+- Conclude with commentary on analysis effectiveness and explicit next steps or monitoring items. Include expanded markdown table of final relevant statistics.
 
 ### Process
 Provide focused narratives for each phase.

@@ -296,7 +296,7 @@ export default function App() {
           <Title order={2} fw={600} c={conversationExchangeTitleColor}>
             NORTHFIELD{' '}
             <Text component="span" inherit fs="italic">
-              ai
+              Private Equity ai
             </Text>
           </Title>
           <Group gap="xs">

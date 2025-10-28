@@ -86,6 +86,8 @@ def desmooth_if_needed(
     ar_test = test_ar1_autocorrelation(returns, significance_level, verbose=verbose)
 
     diagnostics = {
+        "desmoothing_enabled": True,
+        "desmoothing_examined": True,
         "ar1_test": ar_test,
         "desmoothed": False,
         "original_returns": returns.copy()

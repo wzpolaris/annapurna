@@ -11,7 +11,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 from .chat_template_rbsa import RESULT_KEYS, build_llm_messages
-from .rbsa.rbsa_pipeline import rbsa_main
+from .rbsa.rbsa_pipeline import rbsa_run_pipeline
 
 import logging
 logger = logging.getLogger('analytics.rbsa')
@@ -27,8 +27,8 @@ CACHE_SUMMARY_REPORTS = Cache(
     , logger=logger
 )
 
-SHORT_CIRCUIT = True
-SHORT_CIRCUIT_TIME = 5 # 5 seconds
+SHORT_CIRCUIT = False
+SHORT_CIRCUIT_TIME = 2 # 5 seconds
 
 USE_MOCK_DATA = True
 
@@ -63,24 +63,26 @@ def short_circuit_write(obj: Any):
         return None
 
 
-def run_llm(model: str, project_root: Path | None = None) -> Mapping[str, Any]:
+# def run_llm(model: str, project_root: Path | None = None) -> Mapping[str, Any]:
 
-    if USE_MOCK_DATA:
-        print('Using mock RBSA results payload.')
-        results_payload = get_mock_results()
-    else:
-        results_payload = get_rbsa_results()
+#     if USE_MOCK_DATA:
+#         logger.info('Using mock RBSA results payload.')
+#         results_payload = get_mock_results()
+#     else:
+#         logger.info('Loading RBSA results payload from pipeline.')
+#         results_payload = get_rbsa_results()
 
-    summary = rbsa_summarize_results(results_payload)
-    if 'response' in summary:
-        # Convert to dict to allow modification
-        result_dict = dict(summary)
-        result_dict['results_payload'] = results_payload
-        return result_dict
-    return summary
+#     logger.info('Calling LLM to summarize RBSA results...')
+#     summary = rbsa_summarize_results(results_payload)
+#     if 'response' in summary:
+#         # Convert to dict to allow modification
+#         result_dict = dict(summary)
+#         result_dict['results_payload'] = results_payload
+#         return result_dict
+#     return summary
 
 
-def get_mock_results() -> Mapping[str, Any]:
+def get_exception_results() -> Mapping[str, Any]:
     return {
         'results_final': {},
         'results_desmoothing': {},
@@ -94,10 +96,15 @@ def get_mock_results() -> Mapping[str, Any]:
 
 def get_rbsa_results() -> Mapping[str, Any]:
 
+    logger.info('At beginning of get_rbsa_results()')
+
     try:
-        pipeline_output = rbsa_main()
+        
+        pipeline_output = rbsa_run_pipeline()
+        
         analysis_results = pipeline_output.get('analysis_results', {})
-        process_results = analysis_results.get('results_process', {})
+        process_results = pipeline_output.get('pipeline_process', {})
+
         flattened = {
             'results_final': analysis_results.get('results_final', {}),
             'results_desmoothing': process_results.get('results_desmoothing', {}),
@@ -111,31 +118,49 @@ def get_rbsa_results() -> Mapping[str, Any]:
         return flattened
     
     except Exception as exc:
-        print(f'RBSA pipeline execution failed: {exc}')
-        print('Falling back to mock results payload.')
-        return get_mock_results()
+        logger.error(f'rbsa_main execution failed: {exc}')
+        raise Exception(exc)    
 
+
+# - Short-circuit and memoize
 # -- memoize_with_logging  --
-@CACHE_SUMMARY_REPORTS.memoize(tag='rbsa_summarize_results', typed=True)
-def rbsa_summarize_results(
+
+def rbsa_summarize_results(results_payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    if SHORT_CIRCUIT:
+        response_payload = short_circuit_read()
+        if response_payload is not None:
+            return {'response': response_payload}
+    
+    return rbsa_summarize_results_cached(results_payload)
+
+
+CACHE_SUMMARY_REPORTS.memoize(tag='rbsa_summarize_results', typed=True)
+def rbsa_summarize_results_cached(
     results_payload: Mapping[str, Any]
 ) -> Mapping[str, Any]:
     model = str(DEFAULT_MODEL)
+
     messages = build_llm_messages(results=results_payload)
 
-    # BUILT in SHORT_CIRCUIT handling
-    try:
-        # TODO: remove short circuit eventually
-        response_payload = None
-        if SHORT_CIRCUIT:
-            response_payload = short_circuit_read()
-        # if short circuit failed or no short circuit
-        if response_payload is None:
-            response_payload = call_openai(messages, model=model)
-        if SHORT_CIRCUIT and response_payload is not None:
-            short_circuit_write(response_payload)
-    except Exception as exc:  # pragma: no cover - network failure
-        return {'error': f'OpenAI request failed: {exc}'}
+    response_payload = call_openai(messages, model=model)
+
+    with open(os.path.abspath(os.path.join('./_trap_response','response.json')), 'wb') as f:
+        f.write(json.dumps(response_payload, indent=2).encode('utf-8'))
+        logger.info('llm response saved to _trap_response/response.json')
+
+    # # BUILT in SHORT_CIRCUIT handling
+    # try:
+    #     # TODO: remove short circuit eventually
+    #     response_payload = None
+    #     if SHORT_CIRCUIT:
+    #         response_payload = short_circuit_read()
+    #     # if short circuit failed or no short circuit
+    #     if response_payload is None:
+    #         response_payload = call_openai(messages, model=model)
+    #     if SHORT_CIRCUIT and response_payload is not None:
+    #         short_circuit_write(response_payload)
+    # except Exception as exc:  # pragma: no cover - network failure
+    #     return {'error': f'OpenAI request failed: {exc}'}
 
     validation_errors = validate_response(results_payload, response_payload)
     if validation_errors:
@@ -200,13 +225,18 @@ def validate_response(
 
     final_exec = response_root.get('Final', {}).get('Executive Summary', '')
     has_missing_data = any(not value for value in expected_flags.values())
-    warning_text = '**IMPORTANT: No Data Provided**'
+
     if has_missing_data:
-        if not isinstance(final_exec, str) or not final_exec.strip().startswith(warning_text):
-            errors.append('Final Executive Summary must begin with "**IMPORTANT: No Data Provided**".')
-    else:
-        if isinstance(final_exec, str) and warning_text in final_exec:
-            errors.append('Warning "**IMPORTANT: No Data Provided**" present despite data being available.')
+        logger.info('Validation: missing data detected in results payload.')
+
+
+    # warning_text = '**IMPORTANT: No Data Provided**'
+    # if has_missing_data:
+    #     if not isinstance(final_exec, str) or not final_exec.strip().startswith(warning_text):
+    #         errors.append('Final Executive Summary must begin with "**IMPORTANT: No Data Provided**".')
+    # else:
+    #     if isinstance(final_exec, str) and warning_text in final_exec:
+    #         errors.append('Warning "**IMPORTANT: No Data Provided**" present despite data being available.')
 
     return errors
 

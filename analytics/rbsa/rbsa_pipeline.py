@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
+import logging
+logger = logging.getLogger('pipeline.rbsa')
+
 _own_dir = os.path.dirname(__file__)
 if _own_dir not in sys.path:
     sys.path.insert(0, _own_dir)
@@ -128,7 +131,13 @@ def prepare_data(
             checkpoint_runner=checkpoint_runner
         )
     else:
-        desmooth_diagnostics = None
+        desmooth_diagnostics = {
+            "desmoothing_enabled": False,
+            "desmoothing_examined": False,
+            "ar1_test": None,
+            "desmoothed": None,
+            "original_returns": None
+        }
 
     # X contains only selection tickers (exclude substitution-only)
     X = X_all[[col for col in X_all.columns if col in tickers]]
@@ -169,19 +178,19 @@ def prepare_data(
     return result
 
 
-def run_all_methods(cfg: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
-    X, y = data["X"], data["y"]
-    results = {}
-    print('beginning approach A...')
-    results["A"] = approach_A_pipeline(X, y, cfg)
-    print('beginning approach B...')
-    results["B"] = approach_B_pipeline(X, y, cfg)
-    print('beginning approach C...')
-    results["C"] = approach_C_pipeline(X, y, cfg)
-    print('beginning approach D...')
-    results["D"] = approach_D_pipeline(X, y, cfg)
-    print('completed all approaches')
-    return results
+# def run_all_methods(cfg: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+#     X, y = data["X"], data["y"]
+#     results = {}
+#     print('beginning approach A...')
+#     results["A"] = approach_A_pipeline(X, y, cfg)
+#     print('beginning approach B...')
+#     results["B"] = approach_B_pipeline(X, y, cfg)
+#     print('beginning approach C...')
+#     results["C"] = approach_C_pipeline(X, y, cfg)
+#     print('beginning approach D...')
+#     results["D"] = approach_D_pipeline(X, y, cfg)
+#     print('completed all approaches')
+#     return results
 
 
 def summarize_result(res: Dict[str, Any], summarizer: Summarizer) -> str:
@@ -202,89 +211,108 @@ def finalize_results(all_candidates: List[Dict[str, Any]], cfg: Dict[str, Any]) 
     """
 
 
-def rbsa_main() -> Dict[str, Any]:
+def rbsa_run_pipeline() -> Dict[str, Any]:
+
+    logger.info('At beginning of rbsa_run_pipeline()')
 
     cfg = load_config(os.path.join(_project_root, "config.yaml"))
 
     data = prepare_data(cfg, _project_root)
     X, y = data["X"], data["y"]
 
-    results = {}
-    print('beginning approach A...')
-    results["A"] = approach_A_pipeline(X, y, cfg)
-    print('beginning approach B...')
-    results["B"] = approach_B_pipeline(X, y, cfg)
-    print('beginning approach C...')
-    results["C"] = approach_C_pipeline(X, y, cfg)
-    print('beginning approach D...')
-    results["D"] = approach_D_pipeline(X, y, cfg)
-    print('completed all approaches')
-
-    labels = {
+    rbsa_approaches = {
         'A': 'Approach A (Stepwise NNLS)',
         'B': 'Approach B (Elastic Net + NNLS Refit)',
         'C': 'Approach C (PCA + NNLS)',
-        'D': 'Approach D (Clustering + Approach A)',
+        'D': 'Approach D (Clustering + Approach A)'
     }
 
-    summary_results = []
-    for k, v in results.items():
-        print('-'*40)
-        print('summarizing approach', k)
-        weights_formatted = v["weights"].round(3).astype(float).to_dict()
+    rbsa_results= {}
+
+    logger.info('Begin running RBSA approaches...')
+    for approach_key, approach_label in rbsa_approaches.items():
+        logger.info(f'beginning {approach_label}...')
+        # dynamically get the function by name
+        func_name = f"approach_{approach_key}_pipeline"
+        pipeline_func = globals()[func_name]
+        # execute the function
+        result = pipeline_func(X, y, cfg)
+        # store the result
+        rbsa_results[approach_key] = result
+        logger.info(f'{approach_label} completed.')
+    logger.info('completed all RBSA approaches')
+
+
+    # create score and rank for each approach
+    WEIGHT_ROUNDING = 3
+    DESCRIPTIVE_STATISTICS_ROUNDING = 6
+
+    logger.info('Extracting RBSA results for each approach.')
+    rbsa_summary_results_array = []
+    for k, v in rbsa_results.items():
+        # get allocation weights
+        weights_formatted = v["weights"].round(WEIGHT_ROUNDING).astype(float).to_dict()
+        # round floating values to 6 decimal places
         diagnostics_rounded = v['diagnostics'].copy()
         for dkey, v in diagnostics_rounded.items():
             if isinstance(v, float):
-                diagnostics_rounded[dkey] = round(v, 6)
+                diagnostics_rounded[dkey] = round(v, DESCRIPTIVE_STATISTICS_ROUNDING)
         summary = { 
-            "label": labels.get(k),
+            "label": rbsa_approaches[k],
             "weights": weights_formatted,
             "diagnostics": diagnostics_rounded,
         }
-        summary_results.append(summary)
+        rbsa_summary_results_array.append(summary)
 
-
+    # -- Scoring system to compare across approaches
+    #  add score to each summary
     mode = cfg.get("analysis", {}).get("mode", "in_sample")
-
-    for idx, summary in enumerate(summary_results):
-        if mode == "in_sample":
-            score = summary.get("diagnostics", {}).get("r2", -np.inf)
-        else:
-            score = -summary.get("diagnostics", {}).get("rmse", np.inf)
+    if mode=="in_sample":
+        scoring_metric = "r2"
+        missing_metric = -np.inf
+        logger.info(f'Scoring RBSA approaches using in-sample R² metric.')
+    else:
+        scoring_metric = "rmse"
+        missing_metric = np.inf
+        logger.info(f'Scoring RBSA approaches using out-of-sample RMSE metric.')
+    for idx, summary in enumerate(rbsa_summary_results_array):
+        score = summary.get("diagnostics", {}).get(scoring_metric, missing_metric)
         summary["score"] = score  # Assign the computed score to the summary    
-        summary_results[idx] = summary
+        rbsa_summary_results_array[idx] = summary
 
-    sorted_summary_results = sorted(summary_results, key=lambda item: item['score'], reverse=True)
-    for idx, summary in enumerate(sorted_summary_results):
+    # now sort the results based on score
+    # add rank
+    rbsa_summary_results_array_sorted = sorted(rbsa_summary_results_array, key=lambda item: item['score'], reverse=True)
+    for idx, summary in enumerate(rbsa_summary_results_array_sorted):
         summary['rank'] = idx+1
-        sorted_summary_results[idx] = summary
+        rbsa_summary_results_array_sorted[idx] = summary
 
-    print([(x['rank'], x['score']) for x in sorted_summary_results])
+    for summary in rbsa_summary_results_array_sorted:
+        logger.info((summary['label'], summary['rank'], summary['score']))
 
-    results_final = sorted_summary_results[0]
-      
-    _analysis_results = {
-        "analysis_results": {}
-    }
+    summary_results_best = rbsa_summary_results_array_sorted[0]
+    logger.info(f'Selected best approach:')
+    logger.info((summary_results_best['label'], summary_results_best['rank'], summary_results_best['score']))
+                
+    output = {}
 
-    _analysis_results["analysis_results"]["results_final"] = results_final
+    output['analysis_results'] = {}
+    output["analysis_results"]["results_final"] = summary_results_best
 
-    results_process = {}
-    results_process["results_desmoothing"] = {}
-    results_process["results_approach_A"] = summary_results[0]
-    results_process["results_approach_B"] = summary_results[1]
-    results_process["results_approach_C"] = summary_results[2]
-    results_process["results_approach_D"] = summary_results[3]
-    results_process["results_substitution"] = {}
+    output['pipeline_process'] = {}
+    output["pipeline_process"]["results_desmoothing"] = {}
+    output["pipeline_process"]["results_approach_A"] = rbsa_summary_results_array[0]
+    output["pipeline_process"]["results_approach_B"] = rbsa_summary_results_array[1]
+    output["pipeline_process"]["results_approach_C"] = rbsa_summary_results_array[2]
+    output["pipeline_process"]["results_approach_D"] = rbsa_summary_results_array[3]
+    output["pipeline_process"]["results_substitution"] = {}
 
-    _analysis_results["analysis_results"]["results_process"] = results_process
-
-    return _analysis_results
+    return output
 
 
 
 if __name__ == "__main__":
     root = os.path.dirname(os.path.dirname(__file__))
     os.chdir(root)
-    out = rbsa_main()
+    out = rbsa_run_pipeline()
     print({k: (list(v["selected"]) if k != "final" else "final") for k,v in out.items() if k in ["A","B","D","final"]})
