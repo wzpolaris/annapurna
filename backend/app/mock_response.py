@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from .schemas import ResponseBlock
+from .upload_block import upload_block_component
 
 LATEX_SNIPPETS = [
     r"The Sharpe ratio is given by $S = \frac{\mu - r_f}{\sigma}$.",
@@ -62,6 +63,11 @@ def _html_table_block() -> ResponseBlock:
     return ResponseBlock(type='html', content=html)
 
 
+def _upload_block() -> ResponseBlock:
+    content = upload_block_component()
+    return ResponseBlock(type='html', content=content)
+
+
 _GENERATORS = [_markdown_block, _plot_block, _html_table_block]
 
 
@@ -75,3 +81,8 @@ def generate_mock_blocks(space_key: str) -> List[ResponseBlock]:
         else:
             blocks.append(generator())  # type: ignore[arg-type]
     return blocks
+
+
+def generate_upload_block() -> List[ResponseBlock]:
+    """Return a single upload card block for dev preview."""
+    return [_upload_block()]

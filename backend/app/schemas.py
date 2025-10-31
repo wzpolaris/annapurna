@@ -11,7 +11,7 @@ class ChatMessage(BaseModel):
 
 
 class ResponseBlock(BaseModel):
-    type: Literal['markdown', 'image', 'html']
+    type: Literal['markdown', 'image', 'html', 'upload']
     content: str
     alt_text: Optional[str] = Field(None, alias='altText')
 

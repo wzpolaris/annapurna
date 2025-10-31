@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .openai_client import OpenAIConfigurationError, generate_chat_response
-from .mock_response import generate_mock_blocks
+from .mock_response import generate_mock_blocks, generate_upload_block
 from .schemas import ChatRequest, ChatResponse, HealthResponse, ResponseBlock
 from .tables import build_space_table
 
@@ -97,15 +97,20 @@ async def chat(request: ChatRequest) -> ChatResponse:
             }
         )
 
+        normalized_message = request.message.strip().lower()
+
         # ################################################################
         # Mock and LLM bypass check
         # ################################################################
         # -- Mock bypass
-        if request.message.strip().lower().startswith('mock'):
+        if normalized_message.startswith('upload'):
+            logger.info('Generating upload preview block')
+            outputs = generate_upload_block()
+        elif normalized_message.startswith('mock'):
             logger.info('Generating mock response blocks')
             outputs = generate_mock_blocks(request.space_key)
         # -- LLM bypass
-        elif request.message.strip().lower().startswith('llm'):
+        elif normalized_message.startswith('llm'):
             assistant_message = await generate_chat_response(
                 request.message,
                 request.space_title,
