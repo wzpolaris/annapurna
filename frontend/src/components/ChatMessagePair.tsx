@@ -17,6 +17,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
 import { conversationExchangeTitleColor } from '../theme/colors';
+import { UploadBlock } from './blocks/UploadBlock';
 
 interface ChatMessagePairProps {
   pair: ConversationPair;
@@ -73,6 +74,8 @@ const renderBlock = (
           )}
         </Paper>
       );
+    case 'upload':
+      return <UploadBlock content={block.content} />;
     case 'html':
       return (
         <Paper withBorder radius="sm" p="sm">

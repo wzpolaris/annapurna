@@ -8,7 +8,7 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-export type AssistantBlockType = 'markdown' | 'image' | 'html' | 'queryButtons';
+export type AssistantBlockType = 'markdown' | 'image' | 'html' | 'queryButtons' | 'upload';
 
 export interface AssistantActionButton {
   id: string;

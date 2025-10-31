@@ -70,6 +70,19 @@ export default function App() {
   const createConversation = useAppStore((state) => state.createConversation);
   const sendUserMessage = useAppStore((state) => state.sendUserMessage);
   const completeAssistantMessage = useAppStore((state) => state.completeAssistantMessage);
+  const renderTimerRef = useRef<{ label: string; started: boolean; ended: boolean } | null>(null);
+  if (!renderTimerRef.current) {
+    const timestamp =
+      typeof performance !== 'undefined' ? performance.now().toFixed(2) : Date.now().toString();
+    const label = `[App] initial render ${timestamp}`;
+    console.time(label);
+    console.log('[App] render start');
+    renderTimerRef.current = {
+      label,
+      started: true,
+      ended: false
+    };
+  }
   const viewportRef = useRef<HTMLDivElement>(null);
   const isChatView = activeNav !== 'spaces';
   const headerText = isChatView
@@ -85,6 +98,22 @@ export default function App() {
     ],
     []
   );
+
+  useEffect(() => {
+    const timer = renderTimerRef.current;
+    if (timer && timer.started && !timer.ended) {
+      console.timeEnd(timer.label);
+      timer.ended = true;
+      console.log('[App] mounted');
+    }
+    return () => {
+      console.log('[App] cleanup invoked');
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log(`[App] conversation pairs rendered: ${conversationPairs.length}`);
+  }, [conversationPairs.length]);
 
   useEffect(() => {
     if (!isChatView) {

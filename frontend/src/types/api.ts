@@ -1,4 +1,4 @@
-export type ResponseBlockType = 'markdown' | 'image' | 'html' | 'queryButtons';
+export type ResponseBlockType = 'markdown' | 'image' | 'html' | 'queryButtons' | 'upload';
 
 export interface ResponseActionButton {
   id: string;
