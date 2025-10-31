@@ -130,6 +130,55 @@ def run_rbsa() -> str:
 
 
 def llm_follow_up(question: str) -> str:
+
+    import json
+ 
+    model = str(ROUTER_STATE.get('model') or DEFAULT_MODEL)
+    
+    client = OpenAI()
+    
+    # Use a simple system prompt for follow-ups
+    system_content = """You are a helpful assistant for answering questions about RBSA analysis results. 
+        The user has already run an RBSA analysis. Use the provided results data to answer their 
+        questions clearly and concisely. Focus on the specific information they're asking about.
+    """
+    
+    # Build messages with simple system prompt
+    messages = [
+        {'role': 'system', 'content': system_content}
+    ]
+    
+    # Add the JSON results as context instead of full conversation history
+    latest_results = ROUTER_STATE.get('latest_results')
+    latest_summary = ROUTER_STATE.get('latest_summary')
+    
+    if latest_results or latest_summary:
+        context_message = "Here are the RBSA analysis results:\n\n"
+        
+        if latest_summary:
+            # Provide just the clean summary JSON, not the original instructions
+            context_message += f"**Analysis Summary:**\n```json\n{json.dumps(latest_summary, indent=2)}\n```\n\n"
+            
+        if latest_results and latest_results != latest_summary:
+            context_message += f"**Raw Results:**\n```json\n{json.dumps(latest_results, indent=2)}\n```"
+            
+        messages.append({'role': 'user', 'content': context_message})
+    
+    # Add the new question
+    messages.append({'role': 'user', 'content': question})
+    
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=messages,
+        )
+        return completion.choices[0].message.content or 'Sorry, I could not generate a response.'
+    except Exception as e:
+        logger.error(f"LLM follow-up failed: {e}")
+        return f"I'm having trouble processing your question. Please try again."
+
+
+def ORIG_llm_follow_up(question: str) -> str:
     model = str(ROUTER_STATE.get('model') or DEFAULT_MODEL)
     
     client = OpenAI()

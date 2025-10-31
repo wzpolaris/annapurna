@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .checkpoints import CheckpointRunner
 from data_loader import load_fund_returns, load_portfolio, download_prices, to_monthly_returns, align_and_merge, compute_excess, compute_portfolio_returns
 from prelim import winsorize, pca_summary, correlation_clustering, pick_medoids, simple_regime_marks
-from models.approach_a import approach_A_pipeline, stepwise_nnls
+from models.approach_a import approach_A_pipeline #, stepwise_nnls
 from models.approach_b import approach_B_pipeline
 from models.approach_c import approach_C_pipeline
 from models.approach_d import approach_D_pipeline
