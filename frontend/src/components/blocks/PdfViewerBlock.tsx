@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { Document, Page, pdfjs } from 'react-pdf';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
+import { Document, Page } from 'react-pdf';
+import { pdfjs } from 'react-pdf';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 interface PdfViewerBlockProps {
   fileUrl: string;

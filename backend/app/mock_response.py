@@ -65,7 +65,7 @@ def _html_table_block() -> ResponseBlock:
 
 def _upload_block() -> ResponseBlock:
     content = upload_block_component()
-    return ResponseBlock(type='html', content=content)
+    return ResponseBlock(type='upload', content=content)
 
 
 _GENERATORS = [_markdown_block, _plot_block, _html_table_block]
