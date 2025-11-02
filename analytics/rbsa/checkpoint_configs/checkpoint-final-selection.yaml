@@ -1,0 +1,42 @@
+name: "checkpoint-final-selection"
+stage: "Final Candidate Selection"
+
+trigger:
+  after_step: "final_ranking"
+
+prompt_template: |
+  FINAL CANDIDATE SELECTION
+
+  {candidates_summary}
+
+  Total options: {n_options}
+
+  SELECTION CRITERIA:
+    1. Fit quality (R², Adj-R²) - How well does it explain fund returns?
+    2. Parsimony (fewer assets preferred) - Simpler models are more robust
+    3. Economic interpretation - Do the factor exposures make sense?
+    4. Liquidity (tradeable ETFs) - Can this be implemented in practice?
+    5. Stability (consistent performance) - Reliable across time periods
+
+  RECOMMENDATION:
+  The top-ranked candidate balances all criteria.
+
+  Review the options above and consider:
+    • Which combination best represents the fund's style?
+    • Are there any unexpected exposures?
+    • Does the parsimony level seem appropriate?
+
+  Which candidate should be selected for deployment?
+
+options:
+  - value: "yes"
+    label: "Yes, use top-ranked candidate"
+    default: true
+
+  - value: "no"
+    label: "No, let me review alternatives"
+    default: false
+
+  - value: "explain"
+    label: "Explain (compare top candidates)"
+    default: false

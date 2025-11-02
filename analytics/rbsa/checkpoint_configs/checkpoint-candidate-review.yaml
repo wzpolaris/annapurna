@@ -1,0 +1,41 @@
+name: "checkpoint-candidate-review"
+stage: "Candidate Review"
+
+trigger:
+  after_step: "consolidation"
+
+prompt_template: |
+  INITIAL CANDIDATE REVIEW
+  (Before substitution analysis)
+
+  {candidates_summary}
+
+  Total candidates: {n_candidates}
+
+  APPROACH SUMMARY:
+  Review the top candidates from Approaches A-D.
+  These represent different asset selection strategies:
+    - Approach A: Constrained optimization (parsimony focus)
+    - Approach B: Elastic Net regularization (data-driven)
+    - Approach C: Bayesian variable selection (uncertainty quantification)
+    - Approach D: Cluster-then-span (correlation structure)
+
+  NEXT STEP:
+  Proceeding to substitution analysis will test:
+    • Bottom-up: IWF+IWD → IWB or SPY (consolidation)
+    • Top-down: IWM → IWO+IWN (style expansion)
+
+  Do you want to proceed to substitution analysis?
+
+options:
+  - value: "yes"
+    label: "Yes, continue to substitution analysis"
+    default: true
+
+  - value: "no"
+    label: "No, pause for manual review"
+    default: false
+
+  - value: "explain"
+    label: "Explain (compare approaches)"
+    default: false

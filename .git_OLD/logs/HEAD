@@ -1,0 +1,23 @@
+0000000000000000000000000000000000000000 34a1a7f35ad4ebc8ff0cbbc5ace66034c0eef6c9 wzieff <wzieff@gmail.com> 1760156172 -0400	commit (initial): Initial commit
+34a1a7f35ad4ebc8ff0cbbc5ace66034c0eef6c9 87dc5ed1c77e30588d6abae8b5963f88bb62a7ee wzieff <wzieff@gmail.com> 1760161767 -0400	commit: shifted to frontend and backend
+87dc5ed1c77e30588d6abae8b5963f88bb62a7ee d601d53108541ebf5101cb82e3af0a27fc3d4011 wzieff <wzieff@gmail.com> 1760204212 -0400	commit: added Conversation Container
+d601d53108541ebf5101cb82e3af0a27fc3d4011 8fd8fdc942130ee6c62d05a2c9043600f1a14d5a wzieff <wzieff@gmail.com> 1760204711 -0400	commit: cleaned up some deprecated properties
+8fd8fdc942130ee6c62d05a2c9043600f1a14d5a f06ab8c05180d14594976552edddaf35faa5f5f1 wzieff <wzieff@gmail.com> 1760223772 -0400	commit: commit before scrolling modificaitons
+f06ab8c05180d14594976552edddaf35faa5f5f1 61f1918aee42ba0e4f725a6debbaa9e06377fdb2 wzieff <wzieff@gmail.com> 1760224909 -0400	commit: tweaks
+61f1918aee42ba0e4f725a6debbaa9e06377fdb2 489cc9df852bd380a632a4234144ffa16d7e05cd wzieff <wzieff@gmail.com> 1760225644 -0400	commit: just copied over rbsa code
+489cc9df852bd380a632a4234144ffa16d7e05cd edc31860a30f123fd12abade2d864d6e2e069fe1 wzieff <wzieff@gmail.com> 1760225870 -0400	commit: organizing into analytics folder
+edc31860a30f123fd12abade2d864d6e2e069fe1 1731549a8384324f0ed435a4a6f3a9952ce4b01c wzieff <wzieff@gmail.com> 1760243081 -0400	commit: beginning of openai rbsa binding
+1731549a8384324f0ed435a4a6f3a9952ce4b01c 205589c42f1aeecf9f5aadca0b6bb07bc252bc70 wzieff <wzieff@gmail.com> 1760245355 -0400	commit: more llm wiring
+205589c42f1aeecf9f5aadca0b6bb07bc252bc70 9a8bac2436ca4021a60a86ae7f2226ecd00b0ab0 wzieff <wzieff@gmail.com> 1760257044 -0400	commit: cleaning up chat router
+9a8bac2436ca4021a60a86ae7f2226ecd00b0ab0 211cf8240f394ebca8e6b29dcc4d6b006bec1a4d wzieff <wzieff@gmail.com> 1760287139 -0400	commit: continuing wiring
+211cf8240f394ebca8e6b29dcc4d6b006bec1a4d a3f703f0c39bf1ab582d2ee9981dd99fa6722e10 wzieff <wzieff@gmail.com> 1760289656 -0400	commit: first attempt after wiring
+a3f703f0c39bf1ab582d2ee9981dd99fa6722e10 2ca2e7f175bca08f00588d0c1db7c525d49e1c19 wzieff <wzieff@gmail.com> 1760318103 -0400	commit: still cleaning up
+2ca2e7f175bca08f00588d0c1db7c525d49e1c19 1e4000b2c913ea286d4b091f46d41540f17e3064 wzieff <wzieff@gmail.com> 1760331414 -0400	commit: DEMO-05: Commit is good for demo-05
+1e4000b2c913ea286d4b091f46d41540f17e3064 df26879269daf2d707aa20d4bce5bf4b8d65c0e3 wzieff <wzieff@gmail.com> 1760350595 -0400	commit: added some short circuiting
+df26879269daf2d707aa20d4bce5bf4b8d65c0e3 b948518c32edd9749f07db918dcd5d12e92bd662 wzieff <wzieff@gmail.com> 1760352283 -0400	commit: minor tweaks
+b948518c32edd9749f07db918dcd5d12e92bd662 4af1ccdd33b5a56dc7e372e456654257ad37a28d wzieff <wzieff@gmail.com> 1761618312 -0400	commit: improving flow
+4af1ccdd33b5a56dc7e372e456654257ad37a28d 4e355cd01e5c8f63421f49a29e4ac048834ab375 wzieff <wzieff@gmail.com> 1761937754 -0400	commit: getting ready for modifications
+4e355cd01e5c8f63421f49a29e4ac048834ab375 a200e52ef50536dbb39622fe9df5f81f32026045 wzieff <wzieff@gmail.com> 1761949191 -0400	commit: added upload block
+a200e52ef50536dbb39622fe9df5f81f32026045 421dd21aa227f450161aad9034df5c81cf9bc8f7 wzieff <wzieff@gmail.com> 1761951866 -0400	commit: fixing pdf worker issues
+421dd21aa227f450161aad9034df5c81cf9bc8f7 17321c4244146a558ac640f921eabb6b63314125 wzieff <wzieff@gmail.com> 1762105880 -0500	commit: added pdfviewer to project
+17321c4244146a558ac640f921eabb6b63314125 8ba831d87ba5adac7d2f550b25799051c14ea333 wzieff <wzieff@gmail.com> 1762114575 -0500	commit: stand-alone first folded in and working

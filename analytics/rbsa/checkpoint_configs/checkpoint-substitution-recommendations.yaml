@@ -1,0 +1,46 @@
+name: "checkpoint-substitution-recommendations"
+stage: "Substitution Recommendations"
+
+trigger:
+  after_step: "substitution_analysis"
+
+prompt_template: |
+  SUBSTITUTION ANALYSIS COMPLETE
+
+  The following substitutions are recommended across all candidates:
+
+  {recommendations_summary}
+
+  Total candidates affected: {n_candidates_affected}
+  Total substitutions: {n_substitutions}
+
+  RATIONALE:
+  • Consolidation improves parsimony (fewer assets)
+  • Maintains or improves fit quality (Adj-R²)
+  • Reduces implementation complexity
+
+  CONTEXT:
+    - IWB = Russell 1000 Total (pure style exposure, low tracking error)
+    - SPY = S&P 500 (sector-weighted, mega-cap focus, higher liquidity)
+    - IWO+IWN = Russell 2000 Growth+Value (granular small-cap style)
+    - Best substitute chosen automatically (highest Adj-R²)
+
+  DECISION MODEL:
+  This is an ALL-OR-NOTHING checkpoint:
+    • "Yes" = Apply ALL recommended substitutions
+    • "No" = Keep ALL original candidates unchanged
+
+  Apply all recommended substitutions?
+
+options:
+  - value: "yes"
+    label: "Yes, apply all substitutions"
+    default: true
+
+  - value: "no"
+    label: "No, keep original candidates"
+    default: false
+
+  - value: "explain"
+    label: "Explain (AI-powered analysis)"
+    default: false

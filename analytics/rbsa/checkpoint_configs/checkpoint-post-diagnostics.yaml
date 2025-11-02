@@ -1,0 +1,43 @@
+name: "checkpoint-post-diagnostics"
+stage: "Post-Diagnostics Review"
+
+trigger:
+  after_step: "desmoothing"
+  condition: "ar_test['requires_desmoothing'] == True"
+
+prompt_template: |
+  DESMOOTHING ANALYSIS
+
+  AR(1) coefficient: {ar1_coef:.6f}
+  AR(1) p-value: {ar1_pvalue:.6f}
+  Ljung-Box p-value: {ljungbox_pvalue}
+  Sample size: {n_obs} observations
+  Significant autocorrelation: {significance}
+
+  INTERPRETATION:
+  Significant positive autocorrelation detected in fund returns.
+  This suggests return smoothing from:
+    - Stale pricing (illiquid assets held at prior valuations)
+    - Appraisal-based valuations (NAVs updated infrequently)
+    - Smoothed reporting (fund manager averaging)
+
+  RECOMMENDATION:
+  Apply Geltner (1993) de-smoothing to:
+    ✓ Remove spurious autocorrelation
+    ✓ Increase measured volatility (more realistic)
+    ✓ Provide accurate factor exposures for RBSA
+
+  Should we proceed with de-smoothing?
+
+options:
+  - value: "yes"
+    label: "Yes, apply de-smoothing"
+    default: true
+
+  - value: "no"
+    label: "No, keep original returns"
+    default: false
+
+  - value: "explain"
+    label: "Explain (AI-powered explanation)"
+    default: false
