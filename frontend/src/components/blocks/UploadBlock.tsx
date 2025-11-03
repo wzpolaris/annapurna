@@ -28,6 +28,23 @@ interface UploadBlockConfig {
   placeholder: string;
 }
 
+type UploadStatus = 'loading' | 'ready' | 'error';
+
+type UploadType = 'pdf' | 'text';
+
+interface UploadEntry {
+  id: string;
+  name: string;
+  sizeLabel: string;
+  status: UploadStatus;
+  type?: UploadType;
+  pdfUrl?: string;
+  previewText?: string;
+  truncated?: boolean;
+  tablePreview?: DelimitedPreview | null;
+  error?: string;
+}
+
 const DEFAULT_CONFIG: UploadBlockConfig = {
   title: 'Upload a file or paste data in the text area below',
   placeholder: 'Paste CSV or text data here'
@@ -50,24 +67,19 @@ const formatSize = (byteSize: number) => {
   return `${byteSize} B`;
 };
 
+const createUploadId = () => `upload-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+
 export const UploadBlock = ({ content }: UploadBlockProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [textValue, setTextValue] = useState('');
-  const [selectedFileName, setSelectedFileName] = useState('');
-  const [selectedFileSize, setSelectedFileSize] = useState('');
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [isTextPreview, setIsTextPreview] = useState(false);
-  const [previewText, setPreviewText] = useState<string | null>(null);
-  const [isPreviewTruncated, setIsPreviewTruncated] = useState(false);
-  const [tablePreview, setTablePreview] = useState<DelimitedPreview | null>(null);
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'actual' | 'table'>('actual');
   const [drawerWidth, setDrawerWidth] = useState<number>(DEFAULT_DRAWER_WIDTH);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const workerRequestIdRef = useRef(0);
-  const pendingWorkerRequestRef = useRef<number | null>(null);
+  const pendingWorkerRequestsRef = useRef<Map<number, string>>(new Map());
   const previewPanelRef = useRef<ImperativePanelHandle | null>(null);
 
   const config = useMemo<UploadBlockConfig>(() => {
@@ -85,43 +97,69 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
     }
   }, [content]);
 
+  const activeUpload = useMemo(
+    () => (activeUploadId ? uploads.find((entry) => entry.id === activeUploadId) ?? null : null),
+    [uploads, activeUploadId]
+  );
+
+  const activeStatus = activeUpload?.status ?? 'ready';
+  const activePdfUrl = activeUpload?.type === 'pdf' ? activeUpload.pdfUrl ?? null : null;
+  const activePreviewText = activeUpload?.type === 'text' ? activeUpload.previewText ?? null : null;
+  const activeTablePreview = activeUpload?.type === 'text' ? activeUpload.tablePreview ?? null : null;
+  const activeTruncated = activeUpload?.type === 'text' ? Boolean(activeUpload.truncated) : false;
+
   useEffect(() => {
-    if (!tablePreview && previewMode === 'table') {
+    if (!activeTablePreview && previewMode === 'table') {
       setPreviewMode('actual');
     }
-  }, [tablePreview, previewMode]);
+  }, [activeTablePreview, previewMode]);
 
-  const applyPreviewResult = useCallback((previewPayload: TextPreviewResult) => {
-    setTextValue('');
-    setPdfUrl(null);
-    setIsTextPreview(true);
-    setPreviewText(previewPayload.truncatedText);
-    setIsPreviewTruncated(previewPayload.truncated);
-    setTablePreview(previewPayload.tablePreview);
-    setPreviewMode('actual');
-    setErrorMessage(null);
+  const updateUploadEntry = useCallback((uploadId: string, partial: Partial<UploadEntry>) => {
+    setUploads((prev) =>
+      prev.map((entry) => (entry.id === uploadId ? { ...entry, ...partial } : entry))
+    );
   }, []);
 
-  const handlePreviewFailure = useCallback((message?: string) => {
-    setIsTextPreview(false);
-    setPreviewText(null);
-    setIsPreviewTruncated(false);
-    setTablePreview(null);
-    setPreviewMode('actual');
-    setErrorMessage(message ?? 'Preview not available for this file type.');
-  }, []);
+  const applyPreviewResult = useCallback(
+    (uploadId: string, previewPayload: TextPreviewResult) => {
+      updateUploadEntry(uploadId, {
+        status: 'ready',
+        type: 'text',
+        previewText: previewPayload.truncatedText,
+        truncated: previewPayload.truncated,
+        tablePreview: previewPayload.tablePreview,
+        error: undefined
+      });
+      setActiveUploadId(uploadId);
+      setPreviewMode('actual');
+    },
+    [updateUploadEntry]
+  );
+
+  const handlePreviewFailure = useCallback(
+    (uploadId: string, message?: string) => {
+      updateUploadEntry(uploadId, {
+        status: 'error',
+        type: undefined,
+        pdfUrl: undefined,
+        previewText: undefined,
+        tablePreview: null,
+        truncated: false,
+        error: message ?? 'Preview not available for this file type.'
+      });
+    },
+    [updateUploadEntry]
+  );
 
   const processBufferSynchronously = useCallback(
-    (buffer: ArrayBuffer) => {
+    (uploadId: string, buffer: ArrayBuffer) => {
       try {
         const decoder = new TextDecoder('utf-8', { fatal: true });
         const decoded = decoder.decode(new Uint8Array(buffer));
-        applyPreviewResult(prepareTextPreview(decoded));
+        applyPreviewResult(uploadId, prepareTextPreview(decoded));
       } catch (error) {
         console.error('Failed to prepare preview synchronously', error);
-        handlePreviewFailure();
-      } finally {
-        setIsPreviewLoading(false);
+        handlePreviewFailure(uploadId);
       }
     },
     [applyPreviewResult, handlePreviewFailure]
@@ -141,36 +179,36 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
       | { id: number; ok: true; preview: TextPreviewResult }
       | { id: number; ok: false; error?: string };
 
-    const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const data = event.data;
-      if (pendingWorkerRequestRef.current !== data.id) {
+      const uploadId = pendingWorkerRequestsRef.current.get(data.id);
+      if (!uploadId) {
         return;
       }
-      pendingWorkerRequestRef.current = null;
-      setIsPreviewLoading(false);
+      pendingWorkerRequestsRef.current.delete(data.id);
       if (data.ok) {
-        applyPreviewResult(data.preview);
+        applyPreviewResult(uploadId, data.preview);
       } else {
-        handlePreviewFailure(data.error);
+        handlePreviewFailure(uploadId, data.error);
       }
     };
 
-    const handleError = () => {
-      if (pendingWorkerRequestRef.current !== null) {
-        pendingWorkerRequestRef.current = null;
-        setIsPreviewLoading(false);
-        handlePreviewFailure('Preview worker failed to process the file.');
+    worker.onerror = () => {
+      if (pendingWorkerRequestsRef.current.size === 0) {
+        return;
       }
+      for (const uploadId of pendingWorkerRequestsRef.current.values()) {
+        handlePreviewFailure(uploadId, 'Preview worker failed to process the file.');
+      }
+      pendingWorkerRequestsRef.current.clear();
     };
-
-    worker.onmessage = handleMessage;
-    worker.onerror = handleError;
 
     return () => {
       worker.onmessage = null;
       worker.onerror = null;
       worker.terminate();
       workerRef.current = null;
+      pendingWorkerRequestsRef.current.clear();
     };
   }, [applyPreviewResult, handlePreviewFailure]);
 
@@ -215,93 +253,77 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
 
   const handleCloseViewer = useCallback(() => {
     setIsViewerOpen(false);
-    setPreviewMode('actual');
   }, []);
 
   const handleBrowseClick = () => {
     fileInputRef.current?.click();
   };
 
-  const resetStates = () => {
-    setPdfUrl(null);
-    setTextValue('');
-    setIsViewerOpen(false);
-    setIsTextPreview(false);
-    setPreviewText(null);
-    setIsPreviewTruncated(false);
-    setTablePreview(null);
-    setPreviewMode('actual');
-    setIsPreviewLoading(false);
-    pendingWorkerRequestRef.current = null;
-  };
+  const processFile = useCallback(
+    (file: File) => {
+      const uploadId = createUploadId();
+      const sizeLabel = formatSize(file.size);
+      const newEntry: UploadEntry = {
+        id: uploadId,
+        name: file.name,
+        sizeLabel,
+        status: 'loading',
+        tablePreview: null
+      };
+      setUploads((prev) => [...prev, newEntry]);
+
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        handlePreviewFailure(uploadId, 'Unable to read file.');
+      };
+
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result === 'string') {
+            updateUploadEntry(uploadId, {
+              status: 'ready',
+              type: 'pdf',
+              pdfUrl: result,
+              error: undefined
+            });
+            setActiveUploadId(uploadId);
+            setPreviewMode('actual');
+          } else {
+            handlePreviewFailure(uploadId, 'Unable to read PDF contents.');
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      reader.onload = () => {
+        const result = reader.result;
+        if (!(result instanceof ArrayBuffer)) {
+          handlePreviewFailure(uploadId, 'Unable to read file contents.');
+          return;
+        }
+        const worker = workerRef.current;
+        if (worker) {
+          const requestId = workerRequestIdRef.current + 1;
+          workerRequestIdRef.current = requestId;
+          pendingWorkerRequestsRef.current.set(requestId, uploadId);
+          worker.postMessage({ id: requestId, buffer: result }, [result]);
+          return;
+        }
+        processBufferSynchronously(uploadId, result);
+      };
+      reader.readAsArrayBuffer(file);
+    },
+    [handlePreviewFailure, processBufferSynchronously, updateUploadEntry]
+  );
 
   const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
     const { files } = event.target;
-    const file = files?.[0];
-    if (!file) {
-      setSelectedFileName('');
-      setSelectedFileSize('');
-      setErrorMessage(null);
-      resetStates();
-      event.target.value = '';
-      return;
+    if (files && files.length > 0) {
+      Array.from(files).forEach(processFile);
     }
-
-    setSelectedFileName(file.name);
-    setSelectedFileSize(formatSize(file.size));
-    setErrorMessage(null);
-
-    const reader = new FileReader();
-
-    reader.onerror = () => {
-      setErrorMessage('Unable to read file.');
-      setIsPreviewLoading(false);
-      resetStates();
-    };
-
-    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === 'string') {
-          setPdfUrl(result);
-          setTextValue('');
-          setIsTextPreview(false);
-          setPreviewText(null);
-          setIsPreviewTruncated(false);
-          setTablePreview(null);
-          setPreviewMode('actual');
-          setErrorMessage(null);
-          setIsPreviewLoading(false);
-        } else {
-          setErrorMessage('Unable to read PDF contents.');
-          resetStates();
-        }
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    reader.onload = () => {
-      const result = reader.result;
-      if (!(result instanceof ArrayBuffer)) {
-        setErrorMessage('Unable to read file contents.');
-        resetStates();
-        return;
-      }
-      const worker = workerRef.current;
-      if (worker) {
-        setIsPreviewLoading(true);
-        const requestId = workerRequestIdRef.current + 1;
-        workerRequestIdRef.current = requestId;
-        pendingWorkerRequestRef.current = requestId;
-        worker.postMessage({ id: requestId, buffer: result }, [result]);
-        return;
-      }
-
-      setIsPreviewLoading(true);
-      processBufferSynchronously(result);
-    };
-    reader.readAsArrayBuffer(file);
     event.target.value = '';
   };
 
@@ -312,26 +334,51 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
       <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
           <Text fw={600}>{config.title}</Text>
-          {selectedFileName ? (
-            <Group gap="xs" align="center" wrap="nowrap" justify="flex-start">
-              <Text size="xs" c="dark.7" truncate>
-                {selectedFileSize ? `${selectedFileName} (${selectedFileSize})` : selectedFileName}
-              </Text>
-              {(pdfUrl || (isTextPreview && previewText)) ? (
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="teal"
-                  onClick={() => {
-                    setPreviewMode('actual');
-                    setIsViewerOpen(true);
-                  }}
-                >
-                  View
-                </Button>
-              ) : null}
-            </Group>
-          ) : null}
+          {uploads.length > 0 ? (
+            <Stack gap="xs">
+              {uploads.map((entry) => (
+                <Stack key={entry.id} gap={2}>
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    {entry.status === 'loading' ? (
+                      <Loader size="xs" color="teal" />
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="subtle"
+                        color="teal"
+                        disabled={entry.status !== 'ready'}
+                        onClick={() => {
+                          setActiveUploadId(entry.id);
+                          setPreviewMode('actual');
+                          setIsViewerOpen(true);
+                        }}
+                      >
+                        View
+                      </Button>
+                    )}
+                    <Text
+                      size="xs"
+                      c="dark.7"
+                      style={{ flex: 1, minWidth: 0 }}
+                      truncate
+                    >
+                      {entry.name}
+                      {entry.sizeLabel ? ` (${entry.sizeLabel})` : ''}
+                    </Text>
+                  </Group>
+                  {entry.status === 'error' ? (
+                    <Text size="xs" c="red" pl="md">
+                      {entry.error ?? 'Preview failed.'}
+                    </Text>
+                  ) : null}
+                </Stack>
+              ))}
+            </Stack>
+          ) : (
+            <Text size="xs" c="dimmed">
+              No uploads yet.
+            </Text>
+          )}
         </Stack>
         <Button
           size="xs"
@@ -345,6 +392,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
           ref={fileInputRef}
           type="file"
           accept=".csv,.txt,.pdf,text/csv,text/plain,application/pdf"
+          multiple
           style={{ display: 'none' }}
           onChange={handleFileChange}
         />
@@ -362,13 +410,6 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
           }
         }}
       />
-
-      {errorMessage ? (
-        <Text size="xs" c="red">
-          {errorMessage}
-        </Text>
-      ) : null}
-
       {isViewerOpen && (
         <Portal>
           <Box
@@ -442,7 +483,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                     >
                       <Group justify="space-between" align="center">
                         <Text fw={600}>
-                          {selectedFileName || 'File preview'}
+                          {activeUpload?.name ?? 'File preview'}
                         </Text>
                         <Group gap="xs">
                           <Button
@@ -475,24 +516,30 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                         overflow: 'hidden'
                       }}
                     >
-                      {pdfUrl ? (
-                        <Box style={{ flex: 1, minHeight: 0 }}>
-                          <Pdf2pViewerBlock
-                            fileUrl={pdfUrl}
-                            filename={selectedFileName || undefined}
-                            fileSize={selectedFileSize || undefined}
-                          />
-                        </Box>
-                      ) : isPreviewLoading ? (
+                      {activeStatus === 'loading' ? (
                         <Stack style={{ flex: 1 }} justify="center" align="center" gap="sm">
                           <Loader color="teal" size="md" variant="dots" />
                           <Text size="sm" c="dimmed">
                             Preparing preview…
                           </Text>
                         </Stack>
-                      ) : isTextPreview && previewText ? (
+                      ) : activeStatus === 'error' ? (
+                        <Stack style={{ flex: 1 }} justify="center" align="center">
+                          <Text size="sm" c="red">
+                            {activeUpload?.error ?? 'Preview unavailable.'}
+                          </Text>
+                        </Stack>
+                      ) : activeUpload && activeUpload.type === 'pdf' && activePdfUrl ? (
+                        <Box style={{ flex: 1, minHeight: 0 }}>
+                          <Pdf2pViewerBlock
+                            fileUrl={activePdfUrl}
+                            filename={activeUpload.name}
+                            fileSize={activeUpload.sizeLabel}
+                          />
+                        </Box>
+                      ) : activeUpload && activeUpload.type === 'text' && activePreviewText ? (
                         <Stack gap="sm" style={{ flex: 1, minHeight: 0 }}>
-                          {tablePreview ? (
+                          {activeTablePreview ? (
                             <Group justify="space-between" align="center" wrap="wrap">
                               <SegmentedControl
                                 value={previewMode}
@@ -504,12 +551,12 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                                 size="xs"
                               />
                               <Text size="xs" c="dimmed">
-                                {tablePreview.delimiterLabel}-delimited preview
+                                {activeTablePreview.delimiterLabel}-delimited preview
                               </Text>
                             </Group>
                           ) : null}
 
-                          {previewMode === 'table' && tablePreview ? (
+                          {previewMode === 'table' && activeTablePreview ? (
                             <ScrollArea style={{ flex: 1, width: '100%', minHeight: 0 }} offsetScrollbars>
                               <Box
                                 component="table"
@@ -521,7 +568,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                               >
                                 <thead>
                                   <tr>
-                                    {tablePreview.headers.map((header, index) => (
+                                    {activeTablePreview.headers.map((header, index) => (
                                       <Box
                                         component="th"
                                         key={`header-${index}`}
@@ -542,7 +589,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {tablePreview.rows.map((row, rowIndex) => (
+                                  {activeTablePreview.rows.map((row, rowIndex) => (
                                     <tr key={`row-${rowIndex}`}>
                                       {row.map((cell, cellIndex) => (
                                         <Box
@@ -580,17 +627,17 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
                                   paddingRight: '0.5rem'
                                 }}
                               >
-                                {previewText}
+                                {activePreviewText}
                               </Box>
                             </ScrollArea>
                           )}
 
-                          {tablePreview ? (
+                          {activeTablePreview ? (
                             <Text size="xs" c="dimmed">
-                              Showing up to {tablePreview.rows.length} rows.
+                              Showing up to {activeTablePreview.rows.length} rows.
                             </Text>
                           ) : null}
-                          {isPreviewTruncated ? (
+                          {activeTruncated ? (
                             <Text size="xs" c="dimmed">
                               Preview truncated to the first {MAX_PREVIEW_CHARS.toLocaleString()} characters.
                             </Text>
