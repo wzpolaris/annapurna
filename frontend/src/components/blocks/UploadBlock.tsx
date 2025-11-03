@@ -377,8 +377,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
               position: 'fixed',
               inset: 0,
               zIndex: 2000,
-              backgroundColor: 'rgba(15, 23, 42, 0.35)',
-              backdropFilter: 'blur(2px)'
+              backgroundColor: 'rgba(15, 23, 42, 0.1)'
             }}
           >
             <Box
