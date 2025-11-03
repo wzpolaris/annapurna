@@ -2,7 +2,8 @@ ITERATION = {
     "delay": 3.0,
     "cards": [
         {
-            "cardType": "user-assistant",
+            "cardType": "assistant-only",
+            "metadata": {"showUserText": False},
             "userText": "slides",
             "assistantBlocks": [
                 {

@@ -42,7 +42,12 @@ export interface AppStoreState {
   selectSpace: (spaceKey: string, spaceTitle: string) => void;
   ensureConversation: (spaceKey: string, spaceTitle: string, conversationLabel?: string) => string;
   createConversation: (spaceKey: string, spaceTitle: string, conversationLabel?: string) => string;
-  sendUserMessage: (content: string) => {
+  sendUserMessage: (
+    content: string,
+    options?: {
+      suppressUser?: boolean;
+    }
+  ) => {
     conversationId: string;
     pairId: string;
   };
@@ -162,7 +167,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
     return conversationId;
   },
-  sendUserMessage: (content) => {
+  sendUserMessage: (content, options) => {
     const state = get();
     const { activeConversationId, conversations, activeSpaceKey, activeSpaceTitle } = state;
     let conversationId = activeConversationId;
@@ -179,6 +184,10 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
     const resolvedConversation = conversation ?? get().conversations[conversationId];
     const pair = composeUserPair(content);
+    if (options?.suppressUser) {
+      pair.cardType = 'assistant-only';
+      pair.user = undefined;
+    }
     const updatedPairs =
       resolvedConversation?.pairs.map((existingPair) => {
         if (!existingPair.assistant) {
@@ -273,18 +282,22 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         return pair;
       }
 
-      const userMessage = primaryCard.userText ?? pair.user?.content ?? '';
-      const updatedUser = pair.user
-        ? { ...pair.user, content: userMessage || pair.user.content }
-        : userMessage
-        ? {
-            id: `${pairId}-user`,
-            role: 'user' as const,
-            author: 'You',
-            content: userMessage,
-            timestamp: resolvedTimestamp
-          }
-        : undefined;
+      const showUserText = primaryCard.metadata?.showUserText !== false;
+      let updatedUser = undefined;
+      if (showUserText) {
+        const userMessage = primaryCard.userText ?? pair.user?.content ?? '';
+        updatedUser = pair.user
+          ? { ...pair.user, content: userMessage || pair.user.content }
+          : userMessage
+          ? {
+              id: `${pairId}-user`,
+              role: 'user' as const,
+              author: 'You',
+              content: userMessage,
+              timestamp: resolvedTimestamp
+            }
+          : undefined;
+      }
 
       return {
         ...pair,
@@ -312,7 +325,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         assistant: assistantMessage
       };
 
-      if (card.cardType === 'user-assistant' && card.userText) {
+      const showExtraUser = card.cardType === 'user-assistant' && card.metadata?.showUserText !== false;
+      if (showExtraUser && card.userText) {
         newPair.user = {
           id: `${newPairId}-user`,
           role: 'user' as const,

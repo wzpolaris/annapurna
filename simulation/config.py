@@ -28,4 +28,4 @@ DEFAULT_ASSISTANT_SELECTOR: str | None = '[data-testid="assistant-response"]'
 DEFAULT_ASSISTANT_TIMEOUT_MS = 10000
 DEFAULT_PENDING_SELECTOR: str | None = '[data-testid="assistant-pending"]'
 DEFAULT_WAIT_TO_SUBMIT_MS = 2000
-DEFAULT_LOOP_ITERATIONS = 0  # 0 = loop forever, positive value limits cycles
+DEFAULT_LOOP_ITERATIONS = 1  # 0 = loop forever, positive value limits cycles

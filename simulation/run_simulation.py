@@ -42,7 +42,7 @@ TYPING_MODE = (getattr(default_config, 'DEFAULT_TYPING_MODE', 'auto') or 'auto')
 AUTO_TYPING_WPM = 44.0
 LOOP_ITERATIONS = max(int(getattr(default_config, 'DEFAULT_LOOP_ITERATIONS', 1)), 0)
 
-SHOW_THINKING = bool(getattr(default_config, 'DEFAULT_THINKING_ENABLED', False))
+SHOW_THINKING = False  # Thinking overlay disabled by default
 THINKING_MESSAGE = getattr(default_config, 'DEFAULT_THINKING_MESSAGE', 'Assistant is thinking…')
 
 
@@ -137,6 +137,19 @@ def _type_user_message(page: Page, message: str) -> None:
         page.locator(SUBMIT_SELECTOR).click()
     else:
         page.keyboard.press("Enter")
+    _reset_hover(page)
+
+
+def _send_user_message_instant(page: Page, message: str) -> None:
+    field = page.locator(INPUT_SELECTOR).first
+    field.wait_for(state="visible")
+    field.focus()
+    field.fill(message)
+    if SUBMIT_SELECTOR:
+        page.locator(SUBMIT_SELECTOR).click()
+    else:
+        page.keyboard.press("Enter")
+    _reset_hover(page)
 
 
 def _wait_for_response(page: Page, iteration: ScriptIteration) -> None:
@@ -173,6 +186,18 @@ def _wait_for_response(page: Page, iteration: ScriptIteration) -> None:
     _wait_for_focus_return(page)
 
 
+def _blur_input(page: Page) -> None:
+    if not INPUT_SELECTOR:
+        return
+    try:
+        page.evaluate(
+            "selector => { const el = document.querySelector(selector); if (el && document.activeElement === el) { el.blur(); } }",
+            INPUT_SELECTOR,
+        )
+    except Exception:
+        pass
+
+
 def _wait_for_focus_return(page: Page) -> None:
     if not INPUT_SELECTOR:
         return
@@ -188,6 +213,30 @@ def _wait_for_focus_return(page: Page) -> None:
         except Exception:
             pass
         time.sleep(0.2)
+
+
+def _reset_hover(page: Page) -> None:
+    if not INPUT_SELECTOR:
+        return
+    try:
+        page.locator(INPUT_SELECTOR).first.hover()
+    except Exception:
+        try:
+            page.mouse.move(0, 0, steps=0)
+        except Exception:
+            pass
+
+
+def _trigger_backend_command(message: str) -> None:
+    try:
+        from analytics.chat_router_rbsa import process_message
+    except Exception:  # pragma: no cover
+        return
+
+    try:
+        process_message(message)
+    except Exception:
+        pass
 
 
 def replay_script(iterations: Iterable[ScriptIteration]) -> None:
@@ -214,11 +263,34 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
             while True:
                 for iteration in iterations:
                     primary_card = iteration.cards[0]
-                    user_text = primary_card.get('userText', '')
-                    if not user_text:
+                    card_type = primary_card.get('cardType', 'user-assistant')
+                    metadata = primary_card.get('metadata') or {}
+                    user_text = (
+                        primary_card.get('userText')
+                        or metadata.get('simUserText')
+                        or metadata.get('sim_user_text')
+                    )
+
+                    if user_text:
+                        show_user_text = metadata.get('showUserText') is not False
+                        if card_type == 'assistant-only' and not show_user_text:
+                            _trigger_backend_command(user_text)
+                            _blur_input(page)
+                            _reset_hover(page)
+                            _wait_for_focus_return(page)
+                            continue
+
+                        send_instant = (card_type == 'assistant-only') or not show_user_text
+                        if send_instant:
+                            _send_user_message_instant(page, user_text)
+                        else:
+                            _type_user_message(page, user_text)
+                        _wait_for_response(page, iteration)
+                    elif card_type != 'assistant-only':
                         raise ValueError('Primary card requires a userText value for simulation.')
-                    _type_user_message(page, user_text)
-                    _wait_for_response(page, iteration)
+                    else:
+                        _blur_input(page)
+                        _wait_for_focus_return(page)
 
                 cycle += 1
                 if LOOP_ITERATIONS and cycle >= LOOP_ITERATIONS:

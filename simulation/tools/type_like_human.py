@@ -153,6 +153,11 @@ def type_like_human(
             if random.random() < correction_prob:
                 page.keyboard.press("Backspace")
                 time.sleep(delay * random.uniform(0.6, 1.2))
+                # Re-type the intended character after correction
+                page.keyboard.type(ch, delay=0)
+                time.sleep(delay)
+                human_pause(prob=0.04)
+                continue
 
         page.keyboard.type(ch, delay=0)
         time.sleep(delay)

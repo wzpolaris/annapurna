@@ -202,16 +202,22 @@ export default function App() {
     };
   }, [conversationPairs, isChatView]);
 
-  const submitMessage = async (message: string, options?: { displayMessage?: string }) => {
+  const submitMessage = async (
+    message: string,
+    options?: { displayMessage?: string; suppressUser?: boolean }
+  ) => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) {
       return;
     }
 
-    const displayMessage = options?.displayMessage?.trim() || trimmedMessage;
+    const displayMessage =
+      options?.suppressUser ? trimmedMessage : options?.displayMessage?.trim() || trimmedMessage;
     const spaceKey = activeSpaceKey ?? DEFAULT_SPACE_KEY;
     const spaceTitle = resolveSpaceTitle(spaceKey);
-    const { conversationId, pairId } = sendUserMessage(displayMessage);
+    const { conversationId, pairId } = sendUserMessage(displayMessage, {
+      suppressUser: options?.suppressUser
+    });
     try {
       const conversationState = useAppStore.getState().conversations[conversationId];
       const history =
@@ -265,6 +271,15 @@ export default function App() {
       completeAssistantMessage(conversationId, pairId, fallbackCards);
     }
   };
+
+  const autoSlidesSentRef = useRef(false);
+  useEffect(() => {
+    if (!autoSlidesSentRef.current) {
+      autoSlidesSentRef.current = true;
+      void submitMessage('slides', { suppressUser: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentional one-time trigger
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();

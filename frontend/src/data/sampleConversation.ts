@@ -7,26 +7,7 @@ const formatTime = (deltaMinutes: number) =>
   formatChatTimestamp(new Date(now.getTime() - deltaMinutes * 60_000));
 
 
-export const initialConversation: ConversationPair[] = [
-  {
-    id: 'pair-1',
-    cardType: 'assistant-only',
-    assistant: {
-      id: 'pair-1-assistant',
-      role: 'assistant',
-      author: 'Atlas',
-      content: 'Welcome to the AI analysis tool! How can I help you today?',
-      timestamp: formatTime(0),
-      blocks: [
-        {
-          id: 'pair-1-assistant-block-0',
-          type: 'markdown',
-          content: 'Welcome to the AI analysis tool! How can I help you today?'
-        }
-      ]
-    }
-  }
-];
+export const initialConversation: ConversationPair[] = [];
 
 
 
