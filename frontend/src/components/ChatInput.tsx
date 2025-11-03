@@ -34,6 +34,7 @@ export const ChatInput = ({ value, onChange, onSubmit, disabled }: ChatInputProp
         <Textarea
           aria-label="Send a message"
           placeholder="Ask a follow-up"
+          data-testid="chat-input"
           variant="unstyled"
           autosize
           minRows={1}
@@ -58,6 +59,7 @@ export const ChatInput = ({ value, onChange, onSubmit, disabled }: ChatInputProp
             color="teal"
             variant="filled"
             disabled={disabled || value.trim().length === 0}
+            data-testid="chat-send"
           >
             <IconArrowUp size={20} stroke={1.5} />
           </ActionIcon>

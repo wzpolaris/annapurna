@@ -4,7 +4,10 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, Union
+
+from video_script import get_iteration, slide_count
+from backend.app.schemas import ResponseBlock
 
 #from dotenv import load_dotenv
 
@@ -49,19 +52,29 @@ ROUTER_STATE: Dict[str, object] = {
     'original_system_prompt': None,
     'model': '',
     'project_root': None,
-    'summariser': None
+    'summariser': None,
+    'slides_mode': False,
+    'current_slide_index': 0
 }
 
 # initialize
 ROUTER_STATE['model'] = os.environ['OPENAI_MODEL']
 ROUTER_STATE['project_root'] = Path(__file__).resolve().parent.parent
 
-def process_message(message: str) -> str:
+from typing import List, Union
+
+
+def process_message(message: str) -> Union[str, List[ResponseBlock]]:
 
     text = message.lower().strip()
     
     try:
-        if request_rbsa(text):
+        if text == 'slides':
+            logger.info('chat router: entering slides mode.')
+            response = _start_slides_mode()
+        elif ROUTER_STATE.get('slides_mode'):
+            response = _next_slide()
+        elif request_rbsa(text):
             logger.info('chat router: full RBSA analysis requested.')
             response = run_rbsa()
         else:
@@ -75,12 +88,79 @@ def process_message(message: str) -> str:
         response = f"I encountered an error processing your request: {str(e)}"
     
     # Add to history once, regardless of success/failure
+    assistant_history = response
+    if not isinstance(response, str):
+        assistant_history = '\n\n'.join(
+            block.content for block in response if isinstance(block.content, str)
+        )
+
     ROUTER_STATE['conversation_history'].extend([
         {'role': 'user', 'content': message},
-        {'role': 'assistant', 'content': response}
+        {'role': 'assistant', 'content': assistant_history}
     ])
 
     return response
+
+
+def _start_slides_mode() -> List[ResponseBlock]:
+    total = slide_count()
+    if total == 0:
+        ROUTER_STATE['slides_mode'] = False
+        ROUTER_STATE['current_slide_index'] = 0
+        return [_mk_markdown_block('No scripted slides are available.')]
+
+    iteration = get_iteration(1)
+    if iteration is None:
+        ROUTER_STATE['slides_mode'] = False
+        ROUTER_STATE['current_slide_index'] = 0
+        return [_mk_markdown_block('No scripted slides are available.')]
+
+    if iteration.delay:
+        time.sleep(iteration.delay)
+
+    ROUTER_STATE['slides_mode'] = True
+    ROUTER_STATE['current_slide_index'] = 1
+    return _build_response_blocks(iteration)
+
+
+def _next_slide() -> List[ResponseBlock]:
+    current_raw = ROUTER_STATE.get('current_slide_index', 0)
+    try:
+        current_index = int(current_raw)
+    except (TypeError, ValueError):
+        current_index = 0
+
+    next_index = current_index + 1 if current_index else 1
+    iteration = get_iteration(next_index)
+
+    if iteration is None:
+        ROUTER_STATE['slides_mode'] = False
+        ROUTER_STATE['current_slide_index'] = 0
+        return [_mk_markdown_block('Reached the end of the scripted slides.')]
+
+    if iteration.delay:
+        time.sleep(iteration.delay)
+
+    ROUTER_STATE['current_slide_index'] = next_index
+    return _build_response_blocks(iteration)
+
+
+def _build_response_blocks(iteration) -> List[ResponseBlock]:
+    if iteration.assistant_blocks:
+        blocks: List[ResponseBlock] = []
+        for raw in iteration.assistant_blocks or []:
+            try:
+                blocks.append(ResponseBlock(**raw))
+            except Exception:
+                blocks.append(_mk_markdown_block(str(raw)))
+        if blocks:
+            return blocks
+    text = iteration.assistant or ''
+    return [_mk_markdown_block(text or '')]
+
+
+def _mk_markdown_block(content: str) -> ResponseBlock:
+    return ResponseBlock(type='markdown', content=content, altText=None)
 
 
 def run_rbsa() -> str:
@@ -349,7 +429,3 @@ def get_nested_report(report: Mapping[str, object], path: tuple[str, ...]) -> Op
             return None
         current = current[key]
     return current if isinstance(current, Mapping) else None
-
-
-
-

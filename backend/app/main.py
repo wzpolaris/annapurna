@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -120,10 +120,21 @@ async def chat(request: ChatRequest) -> ChatResponse:
         # -- RBSA
         else:
             from analytics.chat_router_rbsa import process_message
-            summary_text: str = process_message(request.message)
-            outputs = [
-                ResponseBlock(type='markdown', content=summary_text, altText=None)
-            ]
+            summary = process_message(request.message)
+            if isinstance(summary, list):
+                blocks: List[ResponseBlock] = []
+                for block in summary:
+                    if isinstance(block, ResponseBlock):
+                        blocks.append(block)
+                    elif isinstance(block, Mapping):
+                        blocks.append(ResponseBlock(**block))
+                    else:
+                        blocks.append(ResponseBlock(type='markdown', content=str(block)))
+                outputs = blocks
+            else:
+                outputs = [
+                    ResponseBlock(type='markdown', content=summary, altText=None)
+                ]
     except OpenAIConfigurationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - surface unexpected errors

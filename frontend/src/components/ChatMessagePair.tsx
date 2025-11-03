@@ -26,7 +26,7 @@ interface ChatMessagePairProps {
 }
 
 const AssistantPending = () => (
-  <Group align="center" gap="xs">
+  <Group align="center" gap="xs" data-testid="assistant-pending">
     <Loader size="sm" color="teal" type="dots" />
     <Text size="sm" c="dimmed">
       Atlas is thinking…
@@ -140,7 +140,7 @@ export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) =>
       <Divider />
 
       {pair.assistant ? (
-        <Stack gap="sm">
+        <Stack gap="sm" data-testid="assistant-response">
           {(pair.assistant.blocks ?? []).map((block) => (
             <Box key={block.id}>{renderBlock(block, onQuickReply)}</Box>
           ))}
