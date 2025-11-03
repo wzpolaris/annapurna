@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
   Drawer,
   Group,
+  Loader,
   ScrollArea,
   SegmentedControl,
   Stack,
@@ -12,6 +13,8 @@ import {
 } from '@mantine/core';
 
 import Pdf2pViewerBlock from './pdf2p/Pdf2pViewerBlock';
+import type { DelimitedPreview, TextPreviewResult } from '../../utils/textPreview';
+import { MAX_PREVIEW_CHARS, prepareTextPreview } from '../../utils/textPreview';
 
 interface UploadBlockProps {
   content: string;
@@ -40,114 +43,6 @@ const formatSize = (byteSize: number) => {
   return `${byteSize} B`;
 };
 
-const DELIMITER_CANDIDATES = [
-  { char: ',', label: 'Comma' },
-  { char: '\t', label: 'Tab' },
-  { char: ';', label: 'Semicolon' },
-  { char: '|', label: 'Pipe' }
-] as const;
-
-const MAX_PREVIEW_ROWS = 150;
-const MAX_PREVIEW_COLUMNS = 24;
-const MAX_PREVIEW_CHARS = 200_000;
-const MAX_CELL_LENGTH = 200;
-
-interface DelimitedPreview {
-  headers: string[];
-  rows: string[][];
-  delimiterLabel: string;
-}
-
-const truncateCell = (value: string) => {
-  if (value.length <= MAX_CELL_LENGTH) {
-    return value;
-  }
-  return `${value.slice(0, MAX_CELL_LENGTH - 1)}…`;
-};
-
-const splitDelimitedLine = (line: string, delimiter: string): string[] => {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      const next = line[i + 1];
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (char === delimiter && !inQuotes) {
-      result.push(truncateCell(current.trim()));
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  result.push(truncateCell(current.trim()));
-  return result;
-};
-
-const analyzeDelimitedText = (text: string): DelimitedPreview | null => {
-  if (!text) {
-    return null;
-  }
-
-  const sample = text.slice(0, MAX_PREVIEW_CHARS);
-  const lines = sample
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.length > 0);
-
-  if (lines.length < 2) {
-    return null;
-  }
-
-  const limitedLines = lines.slice(0, MAX_PREVIEW_ROWS + 1);
-  const majorityThreshold = Math.max(2, Math.floor(limitedLines.length * 0.6));
-
-  for (const candidate of DELIMITER_CANDIDATES) {
-    const parsed = limitedLines.map((line) => splitDelimitedLine(line, candidate.char));
-    const columnCounts = parsed.map((row) => row.length);
-    const firstCount = columnCounts[0];
-
-    if (firstCount <= 1 || firstCount > MAX_PREVIEW_COLUMNS) {
-      continue;
-    }
-
-    const consistent = columnCounts.filter((count) => count === firstCount).length;
-    if (consistent < majorityThreshold) {
-      continue;
-    }
-
-    const [headerRow, ...rows] = parsed;
-    return {
-      headers: headerRow,
-      rows: rows.slice(0, MAX_PREVIEW_ROWS).map((row) => {
-        if (row.length === firstCount) {
-          return row;
-        }
-        const adjusted = [...row];
-        while (adjusted.length < firstCount) {
-          adjusted.push('');
-        }
-        return adjusted.slice(0, firstCount);
-      }),
-      delimiterLabel: candidate.label
-    };
-  }
-
-  return null;
-};
-
 export const UploadBlock = ({ content }: UploadBlockProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [textValue, setTextValue] = useState('');
@@ -161,6 +56,13 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
   const [isPreviewTruncated, setIsPreviewTruncated] = useState(false);
   const [tablePreview, setTablePreview] = useState<DelimitedPreview | null>(null);
   const [previewMode, setPreviewMode] = useState<'actual' | 'table'>('actual');
+  const [drawerWidth, setDrawerWidth] = useState(66);
+  const isDraggingResize = useRef(false);
+  const [isHandleHover, setIsHandleHover] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+  const workerRequestIdRef = useRef(0);
+  const pendingWorkerRequestRef = useRef<number | null>(null);
 
   const config = useMemo<UploadBlockConfig>(() => {
     if (!content) {
@@ -177,53 +79,186 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
     }
   }, [content]);
 
-  useEffect(() => {
-    if (!tablePreview && previewMode === 'table') {
-      setPreviewMode('actual');
-    }
-  }, [tablePreview, previewMode]);
-
-  const handleBrowseClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const resetStates = () => {
-    setPdfUrl(null);
-    setTextValue('');
-    setIsViewerOpen(false);
-    setIsTextPreview(false);
-    setPreviewText(null);
-    setIsPreviewTruncated(false);
-    setTablePreview(null);
+useEffect(() => {
+  if (!tablePreview && previewMode === 'table') {
     setPreviewMode('actual');
-  };
+  }
+}, [tablePreview, previewMode]);
 
-  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
-    const { files } = event.target;
-    const file = files?.[0];
-    if (!file) {
-      setSelectedFileName('');
-      setSelectedFileSize('');
-      setErrorMessage(null);
-      resetStates();
-      event.target.value = '';
+useEffect(() => {
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!isDraggingResize.current) {
       return;
     }
+    const viewportWidth = window.innerWidth || 1;
+    const distanceFromRight = Math.max(0, viewportWidth - event.clientX);
+    const percent = Math.min(Math.max((distanceFromRight / viewportWidth) * 100, 30), 90);
+    setDrawerWidth(percent);
+    document.body.style.cursor = 'col-resize';
+  };
 
-    setSelectedFileName(file.name);
-    setSelectedFileSize(formatSize(file.size));
+  const handlePointerUp = () => {
+    if (isDraggingResize.current) {
+      isDraggingResize.current = false;
+      document.body.style.cursor = '';
+      setIsHandleHover(false);
+    }
+  };
+
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp);
+
+  return () => {
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+    if (isDraggingResize.current) {
+      isDraggingResize.current = false;
+    }
+    document.body.style.cursor = '';
+    setIsHandleHover(false);
+  };
+}, []);
+
+const handleResizeStart: React.PointerEventHandler<HTMLDivElement> = (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  isDraggingResize.current = true;
+  document.body.style.cursor = 'col-resize';
+  setIsHandleHover(true);
+};
+
+const handleBrowseClick = () => {
+  fileInputRef.current?.click();
+};
+
+const resetStates = () => {
+  setPdfUrl(null);
+  setTextValue('');
+  setIsViewerOpen(false);
+  setIsTextPreview(false);
+  setPreviewText(null);
+  setIsPreviewTruncated(false);
+  setTablePreview(null);
+  setPreviewMode('actual');
+  setIsPreviewLoading(false);
+  pendingWorkerRequestRef.current = null;
+};
+
+const applyPreviewResult = useCallback((previewPayload: TextPreviewResult) => {
+  setTextValue('');
+  setPdfUrl(null);
+  setIsTextPreview(true);
+  setPreviewText(previewPayload.truncatedText);
+  setIsPreviewTruncated(previewPayload.truncated);
+  setTablePreview(previewPayload.tablePreview);
+  setPreviewMode('actual');
+  setErrorMessage(null);
+}, []);
+
+const handlePreviewFailure = useCallback((message?: string) => {
+  setIsTextPreview(false);
+  setPreviewText(null);
+  setIsPreviewTruncated(false);
+  setTablePreview(null);
+  setPreviewMode('actual');
+  if (message) {
+    setErrorMessage(message);
+  } else {
+    setErrorMessage('Preview not available for this file type.');
+  }
+}, []);
+
+const processBufferSynchronously = useCallback(
+  (buffer: ArrayBuffer) => {
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      const decoded = decoder.decode(new Uint8Array(buffer));
+      const previewPayload = prepareTextPreview(decoded);
+      applyPreviewResult(previewPayload);
+    } catch (error) {
+      console.error('Failed to prepare preview synchronously', error);
+      handlePreviewFailure();
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  },
+  [applyPreviewResult, handlePreviewFailure]
+);
+
+useEffect(() => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const worker = new Worker(new URL('../../workers/textPreviewWorker.ts', import.meta.url), {
+    type: 'module'
+  });
+  workerRef.current = worker;
+
+  type WorkerResponse =
+    | { id: number; ok: true; preview: TextPreviewResult }
+    | { id: number; ok: false; error?: string };
+
+  const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+    const data = event.data;
+    if (pendingWorkerRequestRef.current !== data.id) {
+      return;
+    }
+    pendingWorkerRequestRef.current = null;
+    setIsPreviewLoading(false);
+    if (data.ok) {
+      applyPreviewResult(data.preview);
+    } else {
+      handlePreviewFailure(data.error);
+    }
+  };
+
+  const handleError = () => {
+    if (pendingWorkerRequestRef.current !== null) {
+      pendingWorkerRequestRef.current = null;
+      setIsPreviewLoading(false);
+      handlePreviewFailure('Preview worker failed to process the file.');
+    }
+  };
+
+  worker.onmessage = handleMessage;
+  worker.onerror = handleError;
+
+  return () => {
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.terminate();
+    workerRef.current = null;
+  };
+}, [applyPreviewResult, handlePreviewFailure]);
+
+const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+  const { files } = event.target;
+  const file = files?.[0];
+  if (!file) {
+    setSelectedFileName('');
+    setSelectedFileSize('');
     setErrorMessage(null);
+    resetStates();
+    event.target.value = '';
+    return;
+  }
 
-    const reader = new FileReader();
+  setSelectedFileName(file.name);
+  setSelectedFileSize(formatSize(file.size));
+  setErrorMessage(null);
 
-    reader.onerror = () => {
-      setErrorMessage('Unable to read file.');
-      resetStates();
-    };
+  const reader = new FileReader();
 
-    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-      reader.onload = () => {
-        const result = reader.result;
+  reader.onerror = () => {
+    setErrorMessage('Unable to read file.');
+    setIsPreviewLoading(false);
+    resetStates();
+  };
+
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    reader.onload = () => {
+      const result = reader.result;
         if (typeof result === 'string') {
           setPdfUrl(result);
           setTextValue('');
@@ -233,50 +268,39 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
           setTablePreview(null);
           setPreviewMode('actual');
           setErrorMessage(null);
+          setIsPreviewLoading(false);
         } else {
           setErrorMessage('Unable to read PDF contents.');
           resetStates();
         }
-      };
-      reader.readAsDataURL(file);
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  reader.onload = () => {
+    const result = reader.result;
+    if (!(result instanceof ArrayBuffer)) {
+      setErrorMessage('Unable to read file contents.');
+      resetStates();
+      return;
+    }
+    const worker = workerRef.current;
+    if (worker) {
+      setIsPreviewLoading(true);
+      const requestId = workerRequestIdRef.current + 1;
+      workerRequestIdRef.current = requestId;
+      pendingWorkerRequestRef.current = requestId;
+      worker.postMessage({ id: requestId, buffer: result }, [result]);
       return;
     }
 
-    reader.onload = () => {
-      const result = reader.result;
-      if (!(result instanceof ArrayBuffer)) {
-        setErrorMessage('Unable to read file contents.');
-        resetStates();
-        return;
-      }
-      try {
-        const decoder = new TextDecoder('utf-8', { fatal: true });
-        const decoded = decoder.decode(new Uint8Array(result));
-        setTextValue('');
-        setPdfUrl(null);
-        setIsTextPreview(true);
-        const isTruncated = decoded.length > MAX_PREVIEW_CHARS;
-        const truncated = isTruncated ? `${decoded.slice(0, MAX_PREVIEW_CHARS)}\n…` : decoded;
-        setPreviewText(truncated);
-        setIsPreviewTruncated(isTruncated);
-        const analysis = analyzeDelimitedText(decoded);
-        setTablePreview(analysis);
-        setPreviewMode('actual');
-        setErrorMessage(null);
-      } catch {
-        setErrorMessage('Preview not available for this file type.');
-        setTextValue('');
-        setPdfUrl(null);
-        setIsTextPreview(false);
-        setPreviewText(null);
-        setIsPreviewTruncated(false);
-        setTablePreview(null);
-        setPreviewMode('actual');
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    event.target.value = '';
+    setIsPreviewLoading(true);
+    processBufferSynchronously(result);
   };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+};
 
   return (
     <Stack gap="md">
@@ -345,15 +369,21 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
         onClose={() => {
           setIsViewerOpen(false);
           setPreviewMode('actual');
+          if (isDraggingResize.current) {
+            isDraggingResize.current = false;
+          }
+          document.body.style.cursor = '';
+          setIsHandleHover(false);
         }}
         title={selectedFileName || 'File preview'}
         position="right"
-        size="66%"
+        size={`${drawerWidth}%`}
         padding="md"
         styles={{
           content: {
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            position: 'relative'
           },
           body: {
             flex: 1,
@@ -362,6 +392,26 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
           }
         }}
       >
+        <Box
+          onPointerDown={handleResizeStart}
+          onPointerEnter={() => setIsHandleHover(true)}
+          onPointerLeave={() => {
+            if (!isDraggingResize.current) {
+              setIsHandleHover(false);
+            }
+          }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '12px',
+            cursor: 'col-resize',
+            zIndex: 10,
+            background: isHandleHover || isDraggingResize.current ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
+            transition: 'background 120ms ease'
+          }}
+        />
         {pdfUrl ? (
           <Box style={{ flex: 1, height: '100%', minHeight: 0 }}>
             <Pdf2pViewerBlock
@@ -370,6 +420,13 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
               fileSize={selectedFileSize || undefined}
             />
           </Box>
+        ) : isPreviewLoading ? (
+          <Stack style={{ flex: 1 }} justify="center" align="center" gap="sm">
+            <Loader color="teal" size="md" variant="dots" />
+            <Text size="sm" c="dimmed">
+              Preparing preview…
+            </Text>
+          </Stack>
         ) : isTextPreview && previewText ? (
           <Stack gap="sm" style={{ flex: 1, width: '100%', minHeight: 0 }}>
             {tablePreview ? (
