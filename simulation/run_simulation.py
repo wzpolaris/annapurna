@@ -213,8 +213,11 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
         try:
             while True:
                 for iteration in iterations:
-                    if iteration.user:
-                        _type_user_message(page, iteration.user)
+                    primary_card = iteration.cards[0]
+                    user_text = primary_card.get('userText', '')
+                    if not user_text:
+                        raise ValueError('Primary card requires a userText value for simulation.')
+                    _type_user_message(page, user_text)
                     _wait_for_response(page, iteration)
 
                 cycle += 1

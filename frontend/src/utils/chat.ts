@@ -37,6 +37,7 @@ export const composeUserPair = (userMessage: string): ConversationPair => {
   const pairId = `pair-${pairCount}`;
   return {
     id: pairId,
+    cardType: 'user-assistant',
     user: createChatMessage('user', pairId, 'You', userMessage)
   };
 };

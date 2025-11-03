@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .openai_client import OpenAIConfigurationError, generate_chat_response
 from .mock_response import generate_mock_blocks, generate_upload_block
-from .schemas import ChatRequest, ChatResponse, HealthResponse, ResponseBlock
+from .schemas import ChatRequest, ChatResponse, HealthResponse, ResponseBlock, ResponseCard
 from .tables import build_space_table
 
 
@@ -104,11 +104,13 @@ async def chat(request: ChatRequest) -> ChatResponse:
         # ################################################################
         # -- Mock bypass
         if normalized_message.startswith('upload'):
-            logger.info('Generating upload preview block')
-            outputs = generate_upload_block()
+            logger.info('Generating upload preview card')
+            blocks = generate_upload_block()
+            cards = [_build_user_assistant_card(request.message, blocks)]
         elif normalized_message.startswith('mock'):
-            logger.info('Generating mock response blocks')
-            outputs = generate_mock_blocks(request.space_key)
+            logger.info('Generating mock response card')
+            blocks = generate_mock_blocks(request.space_key)
+            cards = [_build_user_assistant_card(request.message, blocks)]
         # -- LLM bypass
         elif normalized_message.startswith('llm'):
             assistant_message = await generate_chat_response(
@@ -116,25 +118,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
                 request.space_title,
                 history=request.history
             )
-            outputs = [ResponseBlock(type='markdown', content=assistant_message)]
-        # -- RBSA
+            blocks = [ResponseBlock(type='markdown', content=assistant_message)]
+            cards = [_build_user_assistant_card(request.message, blocks)]
+        # -- RBSA / Analytics
         else:
             from analytics.chat_router_rbsa import process_message
-            summary = process_message(request.message)
-            if isinstance(summary, list):
-                blocks: List[ResponseBlock] = []
-                for block in summary:
-                    if isinstance(block, ResponseBlock):
-                        blocks.append(block)
-                    elif isinstance(block, Mapping):
-                        blocks.append(ResponseBlock(**block))
-                    else:
-                        blocks.append(ResponseBlock(type='markdown', content=str(block)))
-                outputs = blocks
-            else:
-                outputs = [
-                    ResponseBlock(type='markdown', content=summary, altText=None)
-                ]
+            cards = process_message(request.message)
     except OpenAIConfigurationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - surface unexpected errors
@@ -155,12 +144,16 @@ async def chat(request: ChatRequest) -> ChatResponse:
         extra={
             'conversation_id': request.conversation_id,
             'timestamp': timestamp,
-            'message_blocks': len(outputs)
+            'message_blocks': sum(len(card.assistant_blocks) for card in cards)
         }
     )
 
     return ChatResponse(
         conversation_id=request.conversation_id,
-        outputs=outputs,
+        cards=cards,
         timestamp=timestamp
     )
+
+
+def _build_user_assistant_card(user_text: str, blocks: List[ResponseBlock]) -> ResponseCard:
+    return ResponseCard(card_type='user-assistant', user_text=user_text, assistant_blocks=blocks)

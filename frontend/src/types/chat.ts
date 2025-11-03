@@ -43,6 +43,7 @@ export interface AssistantMessage extends Omit<ChatMessage, 'role'> {
 
 export interface ConversationPair {
   id: string;
-  user: ChatMessage;
+  cardType: 'user-assistant' | 'assistant-only' | 'system';
+  user?: ChatMessage;
   assistant?: AssistantMessage;
 }

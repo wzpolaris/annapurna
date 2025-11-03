@@ -7,7 +7,6 @@ from . import ScriptIteration, all_iterations
 
 
 def simulate_typing(text: str, typing_delay: float = 0.04) -> None:
-    """Render text character-by-character to mimic typing in a terminal."""
     for char in text:
         print(char, end='', flush=True)
         time.sleep(max(typing_delay, 0.0))
@@ -15,7 +14,6 @@ def simulate_typing(text: str, typing_delay: float = 0.04) -> None:
 
 
 def simulate_submit(submit_delay: float = 0.2) -> None:
-    """Display an enter key submission cue after a short pause."""
     if submit_delay and submit_delay > 0:
         time.sleep(submit_delay)
     print("[enter]\n", flush=True)
@@ -29,21 +27,20 @@ def render_dialogue(
     typing_delay: float = 0.035,
     submit_delay: float = 0.2,
 ) -> None:
-    """
-    Walk through the scripted dialogue, inserting delays between turns.
-
-    Each ScriptIteration may define its own delay override which is applied
-    after the assistant finishes speaking.
-    """
     delay = max(default_delay, 0.0)
 
     for index, iteration in enumerate(iterations, start=1):
-        if iteration.user:
-            simulate_typing(f"{user_prefix}{iteration.user}", typing_delay)
-            simulate_submit(submit_delay)
-            time.sleep(delay)
+        for card in iteration.cards:
+            user_text = card.get('userText', '')
+            if user_text:
+                simulate_typing(f"{user_prefix}{user_text}", typing_delay)
+                simulate_submit(submit_delay)
+                time.sleep(delay)
 
-        simulate_typing(f"{assistant_prefix}{iteration.assistant}", typing_delay)
+            for block in card.get('assistantBlocks', []) or []:
+                content = block.get('content', '')
+                if content:
+                    simulate_typing(f"{assistant_prefix}{content}", typing_delay)
 
         turn_delay = iteration.delay if iteration.delay is not None else delay
         if turn_delay and turn_delay > 0:
@@ -53,7 +50,6 @@ def render_dialogue(
 
 
 def main() -> None:
-    """Play the scripted conversation from start to finish."""
     render_dialogue(all_iterations())
 
 

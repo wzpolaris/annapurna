@@ -112,42 +112,50 @@ const renderBlock = (
   }
 };
 
-export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) => (
-  <Paper
-    withBorder
-    radius="sm"
-    shadow="xs"
-    p="sm"
-    bg="white"
-    data-chat-pair={pair.id}
-  >
-    <Stack gap="xs">
-      <Group justify="space-between" align="center">
-        <Text size="xs" c="dimmed" fw={500}>
-          {pair.user.author}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {pair.assistant?.timestamp ?? pair.user.timestamp}
-        </Text>
-      </Group>
+export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) => {
+  const hasUser = Boolean(pair.user?.content);
+  const headerLabel = hasUser ? pair.user?.author ?? 'You' : 'Atlas';
+  const timestamp = pair.assistant?.timestamp ?? pair.user?.timestamp ?? '';
 
-      <Stack gap={2}>
-        <Title order={4} c={conversationExchangeTitleColor}>
-          {pair.user.content}
-        </Title>
+  return (
+    <Paper
+      withBorder
+      radius="sm"
+      shadow="xs"
+      p="sm"
+      bg="white"
+      data-chat-pair={pair.id}
+    >
+      <Stack gap="xs">
+        <Group justify="space-between" align="center">
+          <Text size="xs" c="dimmed" fw={500}>
+            {headerLabel}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {timestamp}
+          </Text>
+        </Group>
+
+        {hasUser && (
+          <Stack gap={2}>
+            <Title order={4} c={conversationExchangeTitleColor}>
+              {pair.user?.content}
+            </Title>
+          </Stack>
+        )}
+
+        {hasUser && <Divider />}
+
+        {pair.assistant ? (
+          <Stack gap="sm" data-testid="assistant-response">
+            {(pair.assistant.blocks ?? []).map((block) => (
+              <Box key={block.id}>{renderBlock(block, onQuickReply)}</Box>
+            ))}
+          </Stack>
+        ) : (
+          <AssistantPending />
+        )}
       </Stack>
-
-      <Divider />
-
-      {pair.assistant ? (
-        <Stack gap="sm" data-testid="assistant-response">
-          {(pair.assistant.blocks ?? []).map((block) => (
-            <Box key={block.id}>{renderBlock(block, onQuickReply)}</Box>
-          ))}
-        </Stack>
-      ) : (
-        <AssistantPending />
-      )}
-    </Stack>
-  </Paper>
-);
+    </Paper>
+  );
+};

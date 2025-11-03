@@ -4,10 +4,11 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional
 
 from video_script import get_iteration, slide_count
-from backend.app.schemas import ResponseBlock
+from backend.app.schemas import ResponseBlock, ResponseCard
+from backend.app.upload_block import upload_block_component
 
 #from dotenv import load_dotenv
 
@@ -64,66 +65,64 @@ ROUTER_STATE['project_root'] = Path(__file__).resolve().parent.parent
 from typing import List, Union
 
 
-def process_message(message: str) -> Union[str, List[ResponseBlock]]:
+def process_message(message: str) -> List[ResponseCard]:
 
     text = message.lower().strip()
-    
+
     try:
         if text == 'slides':
             logger.info('chat router: entering slides mode.')
-            response = _start_slides_mode()
+            response = _start_slides_mode(message)
         elif ROUTER_STATE.get('slides_mode'):
-            response = _next_slide()
+            response = _next_slide(message)
         elif request_rbsa(text):
             logger.info('chat router: full RBSA analysis requested.')
-            response = run_rbsa()
+            summary = run_rbsa()
+            response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
         else:
-            # Use LLM-based classification for intelligent routing
             logger.info('chat router: follow-up requested.')
-            response = smart_get_report(message)
-            logger.info(response)
-                
-    except Exception as e:
-        logger.error(f"Error processing message: {e}")
-        response = f"I encountered an error processing your request: {str(e)}"
-    
-    # Add to history once, regardless of success/failure
-    assistant_history = response
-    if not isinstance(response, str):
-        assistant_history = '\n\n'.join(
-            block.content for block in response if isinstance(block.content, str)
-        )
+            summary = smart_get_report(message)
+            logger.info(summary)
+            response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
+
+    except Exception as exc:
+        logger.error(f"Error processing message: {exc}")
+        response = [_mk_user_assistant_card(message, [_mk_markdown_block(f"I encountered an error processing your request: {str(exc)}")])]
+
+    assistant_history: List[str] = []
+    for card in response:
+        assistant_history.extend(block.content for block in card.assistant_blocks)
 
     ROUTER_STATE['conversation_history'].extend([
         {'role': 'user', 'content': message},
-        {'role': 'assistant', 'content': assistant_history}
+        {'role': 'assistant', 'content': '\n\n'.join(assistant_history)}
     ])
 
     return response
 
 
-def _start_slides_mode() -> List[ResponseBlock]:
+def _start_slides_mode(user_message: str) -> List[ResponseCard]:
     total = slide_count()
     if total == 0:
         ROUTER_STATE['slides_mode'] = False
         ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_markdown_block('No scripted slides are available.')]
+        return [_mk_user_assistant_card(user_message, [_mk_markdown_block('No scripted slides are available.')])]
 
     iteration = get_iteration(1)
     if iteration is None:
         ROUTER_STATE['slides_mode'] = False
         ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_markdown_block('No scripted slides are available.')]
+        return [_mk_user_assistant_card(user_message, [_mk_markdown_block('No scripted slides are available.')])]
 
     if iteration.delay:
         time.sleep(iteration.delay)
 
     ROUTER_STATE['slides_mode'] = True
     ROUTER_STATE['current_slide_index'] = 1
-    return _build_response_blocks(iteration)
+    return _build_response_cards(iteration)
 
 
-def _next_slide() -> List[ResponseBlock]:
+def _next_slide(user_message: str) -> List[ResponseCard]:
     current_raw = ROUTER_STATE.get('current_slide_index', 0)
     try:
         current_index = int(current_raw)
@@ -136,31 +135,49 @@ def _next_slide() -> List[ResponseBlock]:
     if iteration is None:
         ROUTER_STATE['slides_mode'] = False
         ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_markdown_block('Reached the end of the scripted slides.')]
+        return [_mk_assistant_only_card([_mk_markdown_block('Reached the end of the scripted slides.')])]
 
     if iteration.delay:
         time.sleep(iteration.delay)
 
     ROUTER_STATE['current_slide_index'] = next_index
-    return _build_response_blocks(iteration)
+    return _build_response_cards(iteration)
 
 
-def _build_response_blocks(iteration) -> List[ResponseBlock]:
-    if iteration.assistant_blocks:
+def _build_response_cards(iteration) -> List[ResponseCard]:
+    cards: List[ResponseCard] = []
+    for raw in iteration.cards:
+        card_type = raw['cardType']
+        user_text = raw.get('userText')
+        metadata = raw.get('metadata')
         blocks: List[ResponseBlock] = []
-        for raw in iteration.assistant_blocks or []:
-            try:
-                blocks.append(ResponseBlock(**raw))
-            except Exception:
-                blocks.append(_mk_markdown_block(str(raw)))
-        if blocks:
-            return blocks
-    text = iteration.assistant or ''
-    return [_mk_markdown_block(text or '')]
+        for raw_block in raw.get('assistantBlocks', []) or []:
+            block_type = raw_block.get('type')
+            if block_type == 'upload' and not raw_block.get('content'):
+                content = upload_block_component()
+                raw_block = {**raw_block, 'content': content}
+            blocks.append(ResponseBlock(**raw_block))
+        cards.append(
+            ResponseCard(
+                card_type=card_type,
+                user_text=user_text,
+                assistant_blocks=blocks,
+                metadata=metadata,
+            )
+        )
+    return cards
 
 
 def _mk_markdown_block(content: str) -> ResponseBlock:
-    return ResponseBlock(type='markdown', content=content, altText=None)
+    return ResponseBlock(type='markdown', content=content)
+
+
+def _mk_user_assistant_card(user_text: str, blocks: List[ResponseBlock]) -> ResponseCard:
+    return ResponseCard(card_type='user-assistant', user_text=user_text, assistant_blocks=blocks)
+
+
+def _mk_assistant_only_card(blocks: List[ResponseBlock]) -> ResponseCard:
+    return ResponseCard(card_type='assistant-only', assistant_blocks=blocks)
 
 
 def run_rbsa() -> str:

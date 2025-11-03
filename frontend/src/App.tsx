@@ -32,7 +32,7 @@ import {
   selectActiveConversationPairs,
   useAppStore
 } from './store/appStore';
-import type { ChatApiResponse, ResponseBlock } from './types/api';
+import type { ChatApiResponse, ResponseBlock, ResponseCard } from './types/api';
 
 const spacesCardDescriptions = {
   'ai-fundmodeler': 'Build predictive fund models with AI-assisted workflows.',
@@ -217,8 +217,8 @@ export default function App() {
       const history =
         conversationState?.pairs.slice(0, -1).flatMap((pair) => {
           const messages = [] as Array<{ role: 'user' | 'assistant'; content: string }>;
-          if (pair.user.content) {
-            messages.push({ role: 'user', content: pair.user.content });
+          if (pair.user?.content) {
+            messages.push({ role: 'user', content: pair.user!.content });
           }
           if (pair.assistant?.blocks?.length) {
             const combined = pair.assistant.blocks.map((block) => block.content).join('\n\n');
@@ -246,7 +246,7 @@ export default function App() {
       }
 
       const data: ChatApiResponse = await response.json();
-      completeAssistantMessage(conversationId, pairId, data.outputs, data.timestamp);
+      completeAssistantMessage(conversationId, pairId, data.cards, data.timestamp);
     } catch (error) {
       console.error('Failed to fetch assistant response', error);
       const fallbackBlocks: ResponseBlock[] = [
@@ -255,7 +255,14 @@ export default function App() {
           content: 'Sorry, something went wrong while contacting the assistant. Please try again.'
         }
       ];
-      completeAssistantMessage(conversationId, pairId, fallbackBlocks);
+      const fallbackCards: ResponseCard[] = [
+        {
+          cardType: 'user-assistant',
+          userText: displayMessage,
+          assistantBlocks: fallbackBlocks
+        }
+      ];
+      completeAssistantMessage(conversationId, pairId, fallbackCards);
     }
   };
 

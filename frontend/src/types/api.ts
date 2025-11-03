@@ -15,8 +15,17 @@ export interface ResponseBlock {
   interactionCompleted?: boolean;
 }
 
+export type ResponseCardType = 'user-assistant' | 'assistant-only' | 'system';
+
+export interface ResponseCard {
+  cardType: ResponseCardType;
+  userText?: string;
+  assistantBlocks: ResponseBlock[];
+  metadata?: Record<string, unknown>;
+}
+
 export interface ChatApiResponse {
   conversationId: string;
-  outputs: ResponseBlock[];
+  cards: ResponseCard[];
   timestamp: string;
 }

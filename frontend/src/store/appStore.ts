@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
-import type { ResponseBlock } from '../types/api';
+import type { ResponseBlock, ResponseCard } from '../types/api';
 import { initialConversation } from '../data/sampleConversation';
 import { composeUserPair, formatChatTimestamp } from '../utils/chat';
 
@@ -49,7 +49,7 @@ export interface AppStoreState {
   completeAssistantMessage: (
     conversationId: string,
     pairId: string,
-    blocks: ResponseBlock[],
+    cards: ResponseCard[],
     timestamp?: string
   ) => void;
   setConversationLabel: (conversationId: string, displayLabel: string) => void;
@@ -220,67 +220,119 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
     return { conversationId, pairId: pair.id };
   },
-  completeAssistantMessage: (conversationId, pairId, blocks, timestamp) => {
+  completeAssistantMessage: (conversationId, pairId, cards, timestamp) => {
     const state = get();
     const conversation = state.conversations[conversationId];
-    if (!conversation) {
+    if (!conversation || !cards || cards.length === 0) {
       return;
-    }
-
-    const formattedBlocks: AssistantBlock[] = blocks.map((block, index) => {
-      const blockId = `${pairId}-block-${index}`;
-      const buttons =
-        block.type === 'queryButtons'
-          ? (block.buttons ?? []).map((button, buttonIndex) => ({
-              id: button.id || `${blockId}-action-${buttonIndex}`,
-              label: button.label,
-              submission: button.submission,
-              userMessage: button.userMessage
-            }))
-          : undefined;
-
-      return {
-        id: blockId,
-        type: block.type,
-        content: block.content,
-        altText: block.altText,
-        buttons,
-        interactionCompleted:
-          block.type === 'queryButtons'
-            ? Boolean(block.interactionCompleted)
-            : undefined
-      };
-    });
-
-    if (formattedBlocks.length === 0) {
-      formattedBlocks.push({
-        id: `${pairId}-block-0`,
-        type: 'markdown',
-        content: 'Assistant response was empty.',
-      });
     }
 
     const resolvedTimestamp = timestamp
       ? formatChatTimestamp(new Date(timestamp))
       : formatChatTimestamp(new Date());
 
-    const assistantMessage = {
+    const convertBlocks = (baseId: string, blocks: ResponseBlock[]): AssistantBlock[] =>
+      blocks.map((block, index) => {
+        const blockId = `${baseId}-block-${index}`;
+        const buttons =
+          block.type === 'queryButtons'
+            ? (block.buttons ?? []).map((button, buttonIndex) => ({
+                id: button.id || `${blockId}-action-${buttonIndex}`,
+                label: button.label,
+                submission: button.submission,
+                userMessage: button.userMessage
+              }))
+            : undefined;
+
+        return {
+          id: blockId,
+          type: block.type,
+          content: block.content,
+          altText: block.altText,
+          buttons,
+          interactionCompleted:
+            block.type === 'queryButtons'
+              ? Boolean(block.interactionCompleted)
+              : undefined
+        };
+      });
+
+    const primaryCard = cards[0];
+    const primaryBlocks = convertBlocks(pairId, primaryCard.assistantBlocks);
+    const primaryAssistant = {
       id: `${pairId}-assistant`,
       role: 'assistant' as const,
       author: 'Atlas',
-      content: formattedBlocks[0]?.content,
-      blocks: formattedBlocks,
+      content: primaryBlocks[0]?.content,
+      blocks: primaryBlocks,
       timestamp: resolvedTimestamp
     };
+
+    let pairs = conversation.pairs.map((pair) => {
+      if (pair.id !== pairId) {
+        return pair;
+      }
+
+      const userMessage = primaryCard.userText ?? pair.user?.content ?? '';
+      const updatedUser = pair.user
+        ? { ...pair.user, content: userMessage || pair.user.content }
+        : userMessage
+        ? {
+            id: `${pairId}-user`,
+            role: 'user' as const,
+            author: 'You',
+            content: userMessage,
+            timestamp: resolvedTimestamp
+          }
+        : undefined;
+
+      return {
+        ...pair,
+        cardType: primaryCard.cardType,
+        user: updatedUser,
+        assistant: primaryAssistant
+      };
+    });
+
+    const extraPairs: ConversationPair[] = cards.slice(1).map((card, index) => {
+      const newPairId = `${pairId}-extra-${index + 1}`;
+      const formattedBlocks = convertBlocks(newPairId, card.assistantBlocks);
+      const assistantMessage = {
+        id: `${newPairId}-assistant`,
+        role: 'assistant' as const,
+        author: 'Atlas',
+        content: formattedBlocks[0]?.content,
+        blocks: formattedBlocks,
+        timestamp: resolvedTimestamp
+      };
+
+      const newPair: ConversationPair = {
+        id: newPairId,
+        cardType: card.cardType,
+        assistant: assistantMessage
+      };
+
+      if (card.cardType === 'user-assistant' && card.userText) {
+        newPair.user = {
+          id: `${newPairId}-user`,
+          role: 'user' as const,
+          author: 'You',
+          content: card.userText,
+          timestamp: resolvedTimestamp
+        };
+      }
+
+      return newPair;
+    });
+
+    pairs = [...pairs, ...extraPairs];
 
     set({
       conversations: {
         ...state.conversations,
         [conversationId]: {
           ...conversation,
-          pairs: conversation.pairs.map((pair) =>
-            pair.id === pairId ? { ...pair, assistant: assistantMessage } : pair
-          )
+          pairs
         }
       }
     });

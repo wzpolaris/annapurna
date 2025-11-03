@@ -9,6 +9,7 @@ const formatTime = (deltaMinutes: number) =>
 export const initialConversation: ConversationPair[] = [
   {
     id: 'pair-1',
+    cardType: 'user-assistant',
     user: {
       id: 'pair-1-user',
       role: 'user',
@@ -35,6 +36,7 @@ export const initialConversation: ConversationPair[] = [
   },
   {
     id: 'pair-2',
+    cardType: 'user-assistant',
     user: {
       id: 'pair-2-user',
       role: 'user',
@@ -108,6 +110,7 @@ export const initialConversation: ConversationPair[] = [
   },
   {
     id: 'pair-3',
+    cardType: 'user-assistant',
     user: {
       id: 'pair-3-user',
       role: 'user',
