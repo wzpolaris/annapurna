@@ -179,7 +179,7 @@ export const Pdf2pViewerBlock = ({ fileUrl, filename, fileSize }: Pdf2pViewerBlo
   }, []);
 
   return (
-    <Paper withBorder radius="sm" p="md">
+    <Paper withBorder radius="sm" p="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack className="pdf2p-viewer">
         <Box className="pdf2p-viewer__meta">
           <Text fw={600}>{displayName}</Text>
