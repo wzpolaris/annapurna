@@ -8,6 +8,9 @@ from textwrap import dedent
 from typing import Any, Dict, List, Mapping, Optional
 
 
+FORCE_GLOBAL_DELAY = True  # flip to False to honor per-iteration delays
+GLOBAL_ITERATION_DELAY = 0.0
+
 @dataclass(frozen=True)
 class ScriptIteration:
     cards: List[Dict[str, Any]]
@@ -46,13 +49,19 @@ def _extract_iteration(module: object, module_name: str) -> ScriptIteration:
 
     if iteration_data is not None:
         cards = _coerce_cards(iteration_data.get('cards'))
-        delay = _coerce_delay(iteration_data.get('delay'))
         pause_required = bool(iteration_data.get('pause') or iteration_data.get('pause_required'))
+        raw_delay = _coerce_delay(iteration_data.get('delay'))
     else:
         cards = _coerce_cards(getattr(module, 'CARDS', None))
-        delay = _coerce_delay(getattr(module, 'DELAY_SECONDS', None))
         pause_required = bool(getattr(module, 'PAUSE_REQUIRED', False))
+        raw_delay = _coerce_delay(getattr(module, 'DELAY_SECONDS', None))
 
+    # override
+    if FORCE_GLOBAL_DELAY:
+        delay = GLOBAL_ITERATION_DELAY
+    else:
+        delay = raw_delay
+        
     return ScriptIteration(cards=cards, delay=delay, pause_required=pause_required)
 
 

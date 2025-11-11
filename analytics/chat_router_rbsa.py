@@ -72,18 +72,24 @@ def process_message(message: str) -> List[ResponseCard]:
     try:
         if text == 'slides':
             logger.info('chat router: entering slides mode.')
+            ROUTER_STATE['slides_mode'] = True
             response = _start_slides_mode(message)
         elif ROUTER_STATE.get('slides_mode'):
             response = _next_slide(message)
-        elif request_rbsa(text):
-            logger.info('chat router: full RBSA analysis requested.')
-            summary = run_rbsa()
-            response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
         else:
-            logger.info('chat router: follow-up requested.')
-            summary = smart_get_report(message)
-            logger.info(summary)
-            response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
+            raise Exception('not in slides mode')
+
+
+
+        # elif request_rbsa(text):
+        #     logger.info('chat router: full RBSA analysis requested.')
+        #     summary = run_rbsa()
+        #     response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
+        # else:
+        #     logger.info('chat router: follow-up requested.')
+        #     summary = smart_get_report(message)
+        #     logger.info(summary)
+        #     response = [_mk_user_assistant_card(message, [_mk_markdown_block(summary)])]
 
     except Exception as exc:
         logger.error(f"Error processing message: {exc}")

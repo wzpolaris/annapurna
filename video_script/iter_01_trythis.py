@@ -1,21 +1,21 @@
 ITERATION = {
-    "delay": 2.0,
+    "delay": 1.0,
     "cards": [
         {
             "cardType": "user-assistant",
             "userText": """
-I am interested in a Private Equity investment opportunity. I would like
-to analyze it to see how it fits within my existing portfolio. How can you
-help me to accomplish this?
+I am the chair of an investment committee. In this afternoon's meeting, we will be considering a Private Equity investment. 
+The fund being considered is the Hamilton Lane Private Assets Fund. 
+I am aware that there are differing and strong views among the committe members. I want to lead the group through a methodical discussion.
+
+Can you help me prepare for this meeting?
 """,
             "assistantBlocks": [
                 {
                     "type": "markdown",
                     "content": """
-If we can get some information about the investment, we can analyze it with
-the Northfield Private Equity Analytics tool.
-
-What do you know about it?
+Yes, I can review information you have and summarize relevant information about the Hamilton Lane Private Assets Fund.
+This will help the committee make an informed decision. Do you have something you can upload?
 """,
                 }
             ],

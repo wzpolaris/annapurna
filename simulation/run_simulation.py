@@ -38,6 +38,7 @@ WEBM_DIR = default_config.DEFAULT_WEBM_DIR or None
 MP4_DIR = default_config.DEFAULT_MP4_DIR or None
 FFMPEG_PATH = default_config.DEFAULT_FFMPEG_PATH or None
 
+FORCE_INSTANT_SEND = True  # set False to restore typing
 TYPING_MODE = (getattr(default_config, 'DEFAULT_TYPING_MODE', 'auto') or 'auto').strip().lower()
 AUTO_TYPING_WPM = 44.0
 LOOP_ITERATIONS = max(int(getattr(default_config, 'DEFAULT_LOOP_ITERATIONS', 1)), 0)
@@ -280,7 +281,9 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
                             _wait_for_focus_return(page)
                             continue
 
-                        send_instant = (card_type == 'assistant-only') or not show_user_text
+                        send_instant = FORCE_INSTANT_SEND or card_type == 'assistant-only' or not show_user_text
+                        #send_instant = (card_type == 'assistant-only') or not show_user_text
+                        
                         if send_instant:
                             _send_user_message_instant(page, user_text)
                         else:
