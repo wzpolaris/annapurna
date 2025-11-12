@@ -1,14 +1,13 @@
-ITERATION = {
+TURNS = [
+    {
     "delay": 3.0,
-    "cards": [
-        {
-            "cardType": "assistant-only",
-            "metadata": {"showUserText": False},
-            "userText": "slides",
-            "assistantBlocks": [
-                {
-                    "type": "markdown",
-                    "content": """
+        "cardType": "assistant-only",
+        "metadata": {"showUserText": False},
+        "userText": "slides",
+        "assistantBlocks": [
+            {
+                "type": "markdown",
+                "content": """
 **On Smoothing and Appraisal Bias...**
 
 A general issue with private equity returns is that they are appraisal-based, not transaction-based, creating artificially smooth time series. This smoothing leads to several well-documented issues:
@@ -32,8 +31,7 @@ Netspar Discussion Paper, 09/2013-039.
 Pacific-Basin Finance Journal 50 (2018): 96–118.
 https://doi.org/10.1016/j.pacfin.2017.04.012
 """,
-                }
-            ],
-        }
-    ],
+    }
+],
 }
+]

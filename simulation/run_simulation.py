@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-from datetime import datetime
+import os
 import sys
 import time
+from pathlib import Path
+from datetime import datetime
 from typing import Iterable, Optional
+import argparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -12,10 +14,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from playwright.sync_api import Page, sync_playwright
 
-from video_script import ScriptIteration, all_iterations
+from simulation import ScriptIteration, all_iterations
 import simulation.config as default_config
 from simulation.tools.convert_video import convert_video
 from simulation.tools.type_like_human import type_like_human, wpm_to_delay_ms
+from simulation.preprocess_script import prepare_video_directory
 
 
 URL = default_config.DEFAULT_URL
@@ -240,7 +243,7 @@ def _trigger_backend_command(message: str) -> None:
         pass
 
 
-def replay_script(iterations: Iterable[ScriptIteration]) -> None:
+def replay_script(iterations: Iterable[ScriptIteration], video_dir: Optional[Path] = None) -> None:
     video_path: Optional[str] = None
     with sync_playwright() as playwright:
         browser_launcher = getattr(playwright, BROWSER)
@@ -259,6 +262,11 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
         page = context.new_page()
         page.goto(URL)
 
+        # Send video command through browser to initialize backend
+        if video_dir:
+            _send_user_message_instant(page, f"video {video_dir}")
+            time.sleep(0.5)  # Brief pause for backend to process
+
         cycle = 0
         try:
             while True:
@@ -272,6 +280,13 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
                         or metadata.get('sim_user_text')
                     )
 
+                    # For assistant-only cards with no userText, send a special marker to advance backend
+                    # The backend will return an assistant-only card (no user text shown)
+                    if card_type == 'assistant-only' and not user_text:
+                        _send_user_message_instant(page, "__next__")
+                        _wait_for_response(page, iteration)
+                        continue
+
                     if user_text:
                         show_user_text = metadata.get('showUserText') is not False
                         if card_type == 'assistant-only' and not show_user_text:
@@ -283,7 +298,7 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
 
                         send_instant = FORCE_INSTANT_SEND or card_type == 'assistant-only' or not show_user_text
                         #send_instant = (card_type == 'assistant-only') or not show_user_text
-                        
+
                         if send_instant:
                             _send_user_message_instant(page, user_text)
                         else:
@@ -336,12 +351,34 @@ def replay_script(iterations: Iterable[ScriptIteration]) -> None:
             print(f"MP4 saved to: {mp4_path}", flush=True)
 
 
-def main() -> None:
-    iterations = all_iterations()
+def main(video_name: str) -> None:
+    # Prepare video directory: auto-detect and convert files to _tmp
+    print(f"Preparing video directory: {video_name}")
+    tmp_dir = prepare_video_directory(video_name)
+    print(f"Loading iterations from: {tmp_dir}")
+
+    # Load iterations from _tmp directory
+    iterations = all_iterations(tmp_dir)
+
     if not iterations:
         raise SystemExit("No scripted iterations found. Define iter_*.py files in video_script/")
-    replay_script(iterations)
+
+    # Pass the video directory path to replay_script so it can send via browser
+    replay_script(iterations, video_dir=tmp_dir.absolute())
 
 
 if __name__ == "__main__":
-    main()
+
+    os.chdir(REPO_ROOT)
+
+    video_name = sys.argv[1] if len(sys.argv) > 1 else None
+
+    if not video_name:
+        video_name = input("Enter video folder name (subfolder of video_script/): ").strip()
+        if not video_name:
+            raise SystemExit("Error: Video name is required")
+
+    if not os.path.exists(os.path.join(REPO_ROOT, "video_script", video_name)):
+        raise SystemExit(f"Error: Video folder does not exist: video_script/{video_name}")
+
+    main(video_name)

@@ -211,12 +211,43 @@ export default function App() {
       return;
     }
 
+    // Auto-suppress "video" commands (used by simulator to initialize video mode)
+    // Also suppress "__next__" marker (used by simulator for assistant-only cards)
+    const isVideoCommand = trimmedMessage.toLowerCase().startsWith('video ');
+    const isNextMarker = trimmedMessage === '__next__';
+    const isSystemCommand = isVideoCommand || isNextMarker;
+    const shouldSuppress = options?.suppressUser || isSystemCommand;
+
     const displayMessage =
-      options?.suppressUser ? trimmedMessage : options?.displayMessage?.trim() || trimmedMessage;
+      shouldSuppress ? trimmedMessage : options?.displayMessage?.trim() || trimmedMessage;
     const spaceKey = activeSpaceKey ?? DEFAULT_SPACE_KEY;
     const spaceTitle = resolveSpaceTitle(spaceKey);
+
+    // For system commands (video, __next__), handle specially
+    if (isVideoCommand) {
+      // Video command: send to backend but don't create any UI cards
+      try {
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            conversationId: '',
+            spaceKey,
+            spaceTitle,
+            message: trimmedMessage,
+            history: []
+          })
+        });
+      } catch (error) {
+        console.error('Failed to send video command', error);
+      }
+      return;
+    }
+
     const { conversationId, pairId } = sendUserMessage(displayMessage, {
-      suppressUser: options?.suppressUser
+      suppressUser: shouldSuppress
     });
     try {
       const conversationState = useAppStore.getState().conversations[conversationId];
@@ -272,14 +303,15 @@ export default function App() {
     }
   };
 
-  const autoSlidesSentRef = useRef(false);
-  useEffect(() => {
-    if (!autoSlidesSentRef.current) {
-      autoSlidesSentRef.current = true;
-      void submitMessage('slides', { suppressUser: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentional one-time trigger
+  // Auto-slides removed - video mode is now initiated by simulator via "video" command
+  // const autoSlidesSentRef = useRef(false);
+  // useEffect(() => {
+  //   if (!autoSlidesSentRef.current) {
+  //     autoSlidesSentRef.current = true;
+  //     void submitMessage('slides', { suppressUser: true });
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []); // intentional one-time trigger
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();

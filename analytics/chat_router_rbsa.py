@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
-from video_script import get_iteration, slide_count
+from simulation import get_iteration, slide_count, all_iterations
 from backend.app.schemas import ResponseBlock, ResponseCard
 from backend.app.upload_block import upload_block_component
 
@@ -54,13 +54,21 @@ ROUTER_STATE: Dict[str, object] = {
     'model': '',
     'project_root': None,
     'summariser': None,
-    'slides_mode': False,
-    'current_slide_index': 0
+    'video_mode': False,
+    'current_slide_index': 0,
+    'video_directory': None,  # Optional: set to Path for custom video directory
+    'video_iterations': None,  # Cached list of iterations for current video
 }
 
 # initialize
 ROUTER_STATE['model'] = os.environ['OPENAI_MODEL']
 ROUTER_STATE['project_root'] = Path(__file__).resolve().parent.parent
+
+# Optional: Set custom video directory via environment variable
+# Example: VIDEO_SCRIPT_DIR=video_script/vid_test/_tmp
+video_dir_env = os.environ.get('VIDEO_SCRIPT_DIR')
+if video_dir_env:
+    ROUTER_STATE['video_directory'] = ROUTER_STATE['project_root'] / video_dir_env
 
 from typing import List, Union
 
@@ -70,14 +78,25 @@ def process_message(message: str) -> List[ResponseCard]:
     text = message.lower().strip()
 
     try:
-        if text == 'slides':
-            logger.info('chat router: entering slides mode.')
-            ROUTER_STATE['slides_mode'] = True
-            response = _start_slides_mode(message)
-        elif ROUTER_STATE.get('slides_mode'):
+        # Check for video directory command (e.g., "video /full/path/to/video_script/vid_test/_tmp")
+        # This command initializes video mode silently (no cards returned)
+        if text.startswith('video '):
+            dir_path = message[6:].strip()  # Remove "video " prefix
+            ROUTER_STATE['video_directory'] = Path(dir_path)
+            ROUTER_STATE['video_mode'] = True
+            ROUTER_STATE['current_slide_index'] = 0  # Start at 0, first message will show iteration 0
+
+            # Load iterations and cache them
+            video_dir = Path(dir_path)
+            iterations = all_iterations(video_dir)
+            ROUTER_STATE['video_iterations'] = iterations
+
+            logger.info(f'chat router: video directory set to {dir_path}, video mode ready with {len(iterations)} iterations')
+            return []  # Silent command - no cards returned
+        elif ROUTER_STATE.get('video_mode'):
             response = _next_slide(message)
         else:
-            raise Exception('not in slides mode')
+            raise Exception('not in video mode')
 
 
 
@@ -107,46 +126,76 @@ def process_message(message: str) -> List[ResponseCard]:
     return response
 
 
-def _start_slides_mode(user_message: str) -> List[ResponseCard]:
-    total = slide_count()
-    if total == 0:
-        ROUTER_STATE['slides_mode'] = False
-        ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_user_assistant_card(user_message, [_mk_markdown_block('No scripted slides are available.')])]
+def _start_video_mode(user_message: str) -> List[ResponseCard]:
+    video_dir = ROUTER_STATE.get('video_directory')
 
-    iteration = get_iteration(1)
-    if iteration is None:
-        ROUTER_STATE['slides_mode'] = False
+    # Load all iterations once and cache in ROUTER_STATE
+    if video_dir:
+        iterations = all_iterations(video_dir)
+    else:
+        # Default to video_script/ directory
+        from pathlib import Path
+        default_dir = Path(__file__).resolve().parent.parent / "video_script"
+        iterations = all_iterations(default_dir)
+
+    ROUTER_STATE['video_iterations'] = iterations
+
+    if not iterations:
+        ROUTER_STATE['video_mode'] = False
         ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_user_assistant_card(user_message, [_mk_markdown_block('No scripted slides are available.')])]
+        return [_mk_assistant_only_card([_mk_markdown_block('No scripted slides are available.')])]
+
+    iteration = iterations[0]
 
     if iteration.delay:
         time.sleep(iteration.delay)
 
-    ROUTER_STATE['slides_mode'] = True
+    ROUTER_STATE['video_mode'] = True
     ROUTER_STATE['current_slide_index'] = 1
-    return _build_response_cards(iteration)
+
+    # Build cards from iteration, but hide the video command itself
+    # If this is triggered by "video" command, don't show it as user input
+    cards = _build_response_cards(iteration)
+
+    # If the user_message starts with "video ", this is the initialization command
+    # Mark the first card as assistant-only to hide the command
+    if user_message.lower().strip().startswith('video ') and cards:
+        first_card = cards[0]
+        # Convert to assistant-only if it has user text
+        if first_card.card_type == 'user-assistant':
+            cards[0] = ResponseCard(
+                card_type='assistant-only',
+                assistant_blocks=first_card.assistant_blocks,
+                metadata=first_card.metadata
+            )
+
+    return cards
 
 
 def _next_slide(user_message: str) -> List[ResponseCard]:
-    current_raw = ROUTER_STATE.get('current_slide_index', 0)
-    try:
-        current_index = int(current_raw)
-    except (TypeError, ValueError):
-        current_index = 0
-
-    next_index = current_index + 1 if current_index else 1
-    iteration = get_iteration(next_index)
-
-    if iteration is None:
-        ROUTER_STATE['slides_mode'] = False
+    iterations = ROUTER_STATE.get('video_iterations')
+    if not iterations:
+        ROUTER_STATE['video_mode'] = False
         ROUTER_STATE['current_slide_index'] = 0
-        return [_mk_assistant_only_card([_mk_markdown_block('Reached the end of the scripted slides.')])]
+        return [_mk_assistant_only_card([_mk_markdown_block('No video loaded.')])]
+
+    current_index = ROUTER_STATE.get('current_slide_index', 0)
+
+    # Check if we've reached the end
+    if current_index >= len(iterations):
+        ROUTER_STATE['video_mode'] = False
+        ROUTER_STATE['current_slide_index'] = 0
+        return [_mk_assistant_only_card([_mk_markdown_block('Reached the end of the video.')])]
+
+    # Get current iteration (0-indexed)
+    iteration = iterations[current_index]
 
     if iteration.delay:
         time.sleep(iteration.delay)
 
-    ROUTER_STATE['current_slide_index'] = next_index
+    # Advance to next iteration
+    ROUTER_STATE['current_slide_index'] = current_index + 1
+
     return _build_response_cards(iteration)
 
 

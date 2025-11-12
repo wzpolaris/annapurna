@@ -1,14 +1,14 @@
-ITERATION = {
-    "delay": 5.0,
-    "pause": True,
-    "cards": [
-        {
-            "cardType": "user-assistant",
-            "userText": "The factsheet has been uploaded.",
-            "assistantBlocks": [
-                {
-                    "type": "markdown",
-                    "content": """
+# --TURN--
+
+delay = 5.0
+pause = True
+cardType = "user-assistant"
+
+userText = "The factsheet has been uploaded."
+
+assistantBlocks_type = "markdown"
+assistantBlocks_content = """
+
 Based on the fact sheet, here's what we're evaluating:
 
 **Fund Structure:**
@@ -21,9 +21,5 @@ Based on the fact sheet, here's what we're evaluating:
 
 I found and extracted returns for the I Shares. I also see portfolio allocation information.
 We can use these to do preliminary analyses. I will start with the performance information okay?
-""",
-                }
-            ],
-        }
-    ],
-}
+
+"""
