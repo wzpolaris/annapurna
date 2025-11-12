@@ -128,9 +128,9 @@ An issue with reported private equity returns is that they are appraisal-based, 
 - Lower estimated correlations of PE with public markets.
 - Masking of tail and liquidity risks, especially during crises
 
-Technically speaking, smoothing is the result of "serial correlation" in the reported returns. So, a "de-smoothing" analytical adjustment is often applied to get a better estimate the true risk and return characteristics of PE investments.
+Technically speaking, smoothing is the result of [serial correlation](?drawer=serial_correlation) in the reported returns. So, a "de-smoothing" analytical adjustment is often applied to get a better estimate the true risk and return characteristics of PE investments.
 
-Often a de-smoothing adjustment is applied on the Fund's reported returns if the time series is to be used in standard performance and risk analyses including scenario testing, optimization, etc.
+As result, often a [desmoothing technique](?drawer=desmooth) is applied on the Fund's reported returns if the time series is to be used in standard performance and risk analyses including scenario testing, optimization, etc.
 
 I will apply the technique to the Hamilton Lane fund's returns.
 

@@ -7,17 +7,13 @@ import {
   Paper,
   Stack,
   Text,
-  Title,
-  TypographyStylesProvider
+  Title
 } from '@mantine/core';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
 import { conversationExchangeTitleColor } from '../theme/colors';
 import { UploadBlock } from './blocks/UploadBlock';
+import { MarkdownWithDrawers } from './blocks/MarkdownWithDrawers';
 import Pdf2pViewerBlock from './blocks/pdf2p/Pdf2pViewerBlock';
 
 interface ChatMessagePairProps {
@@ -99,16 +95,7 @@ const renderBlock = (
       );
     case 'markdown':
     default:
-      return (
-        <TypographyStylesProvider>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-          >
-            {block.content}
-          </ReactMarkdown>
-        </TypographyStylesProvider>
-      );
+      return <MarkdownWithDrawers content={block.content} />;
   }
 };
 

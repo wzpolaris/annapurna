@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from .openai_client import OpenAIConfigurationError, generate_chat_response
 from .mock_response import generate_mock_blocks, generate_upload_block
@@ -81,6 +82,19 @@ app.add_middleware(
 @app.get('/health', response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get('/drawers/{drawer_id}.html')
+async def get_drawer(drawer_id: str):
+    """Serve drawer HTML files from video_script/drawers/ directory."""
+    # Get the project root (backend/app/main.py -> backend -> project root)
+    project_root = Path(__file__).resolve().parent.parent.parent
+    drawer_path = project_root / 'video_script' / 'drawers' / f'{drawer_id}.html'
+
+    if not drawer_path.exists():
+        raise HTTPException(status_code=404, detail=f'Drawer {drawer_id} not found')
+
+    return FileResponse(drawer_path, media_type='text/html')
 
 
 @app.post('/chat', response_model=ChatResponse)

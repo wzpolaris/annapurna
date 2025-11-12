@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appraisal Bias</title>
+
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+        crossorigin="anonymous">
+
+  <!-- KaTeX JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+          integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+          crossorigin="anonymous"></script>
+
+  <!-- KaTeX auto-render extension -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+          crossorigin="anonymous"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '\\(', right: '\\)', display: false}
+            ]
+          });"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #212529; padding: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; color: #228be6; margin: 0 0 1rem 0; }
+    h2 { font-size: 1.25rem; font-weight: 600; color: #495057; margin: 1.5rem 0 0.75rem 0; }
+    p { margin: 0 0 1rem 0; }
+    ul { margin: 0 0 1rem 1.5rem; padding: 0; }
+    li { margin-bottom: 0.5rem; }
+    strong { font-weight: 600; }
+    .highlight { background: #fff3bf; padding: 0.125rem 0.25rem; border-radius: 2px; }
+    hr { border: none; border-top: 1px solid #dee2e6; margin: 1.5rem 0; }
+    .math-block { margin: 1rem 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Appraisal Bias in Private Equity</h1>
+
+  <p>
+    <strong>Appraisal bias</strong> refers to systematic distortions in private equity
+    valuations that arise because valuations are based on
+    <span class="highlight">appraisals</span> rather than actual market transactions.
+  </p>
+
+  <h2>Sources of Bias</h2>
+
+  <ul>
+    <li><strong>Stale pricing:</strong> Valuations don't update as frequently as market prices, leading to lagged responses to market changes</li>
+    <li><strong>Smoothing behavior:</strong> Appraisers tend to avoid large value changes, preferring gradual adjustments</li>
+    <li><strong>Model-based values:</strong> Use of DCF or comparable company multiples introduces estimation error</li>
+    <li><strong>Information lag:</strong> Appraisals reflect information available at quarter-end, not real-time market conditions</li>
+    <li><strong>Incentive effects:</strong> Fund managers may have incentives to report stable values for marketing purposes</li>
+  </ul>
+
+  <h2>Impact on Reported Metrics</h2>
+
+  <p>Appraisal bias affects several key performance metrics:</p>
+
+  <ul>
+    <li><strong>Volatility:</strong> Understated by 50-70%, making PE appear less risky than it truly is</li>
+    <li><strong>Sharpe ratio:</strong> Artificially inflated, overstating risk-adjusted performance</li>
+    <li><strong>Correlation:</strong> Lower correlation with public markets than economic reality</li>
+    <li><strong>Beta:</strong> Understated exposure to market risk factors</li>
+    <li><strong>Drawdowns:</strong> Appear smaller and more delayed than actual economic losses</li>
+  </ul>
+
+  <h2>Implications for Investors</h2>
+
+  <p>
+    Investors using reported PE returns <strong>without adjustments</strong> may:
+  </p>
+
+  <ul>
+    <li>Overallocate to PE in portfolio optimization</li>
+    <li>Underestimate total portfolio risk</li>
+    <li>Incorrectly assess diversification benefits</li>
+    <li>Misinterpret performance during market crises</li>
+    <li>Set inappropriate risk limits and triggers</li>
+  </ul>
+
+  <hr>
+
+  <h2>Corrections and Adjustments</h2>
+
+  <p>
+    Professional investors typically apply one or more correction techniques:
+  </p>
+
+  <ul>
+    <li><strong>De-smoothing:</strong> Statistical techniques to remove serial correlation</li>
+    <li><strong>Lag adjustments:</strong> Adjusting PE returns to account for reporting lag</li>
+    <li><strong>Marked-to-market proxies:</strong> Using public market equivalents</li>
+    <li><strong>Cash flow analysis:</strong> Analyzing actual distributions rather than NAV changes</li>
+  </ul>
+</body>
+</html>

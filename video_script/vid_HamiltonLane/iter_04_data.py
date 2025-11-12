@@ -8,6 +8,8 @@ userText = "Yes."
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 
+I have extracted returns for the Institutional(I) Shares. 
+
 **The performance of Hamilton Lane Private Assets Fund is smoothed and, thus, misleading.**
 
 Since inception (March 2020) the Fund has returned: +15.98% (annualized), compared to +12.89% since inception.

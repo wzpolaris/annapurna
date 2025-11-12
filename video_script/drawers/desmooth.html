@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>De-smoothing Technique</title>
+
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+        crossorigin="anonymous">
+
+  <!-- KaTeX JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+          integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+          crossorigin="anonymous"></script>
+
+  <!-- KaTeX auto-render extension -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+          crossorigin="anonymous"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '\\(', right: '\\)', display: false}
+            ]
+          });"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #212529; padding: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; color: #228be6; margin: 0 0 1rem 0; }
+    h2 { font-size: 1.25rem; font-weight: 600; color: #495057; margin: 1.5rem 0 0.75rem 0; }
+    h3 { font-size: 1.1rem; font-weight: 600; color: #495057; margin: 1.25rem 0 0.5rem 0; }
+    p { margin: 0 0 1rem 0; }
+    ul { margin: 0 0 1rem 1.5rem; padding: 0; }
+    li { margin-bottom: 0.5rem; }
+    strong { font-weight: 600; }
+    .highlight { background: #fff3bf; padding: 0.125rem 0.25rem; border-radius: 2px; }
+    code { background: #f1f3f5; padding: 0.125rem 0.375rem; border-radius: 3px; font-family: 'Monaco', monospace; font-size: 0.9em; }
+    pre { background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1rem; border: 1px solid #e9ecef; }
+    pre code { background: none; padding: 0; }
+    a { color: #228be6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #dee2e6; margin: 1.5rem 0; }
+    .math-block { margin: 1rem 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>De-smoothing Technique</h1>
+
+  <p>
+    De-smoothing is a statistical adjustment applied to private equity returns
+    to correct for <span class="highlight">artificial smoothing</span> caused
+    by appraisal-based valuations rather than market transactions.
+  </p>
+
+  <h2>Why It's Needed</h2>
+
+  <ul>
+    <li><strong>Infrequent valuations:</strong> PE funds typically value assets quarterly or less frequently, not continuously like public markets</li>
+    <li><strong>Appraisal methodology:</strong> Valuations are based on models and comparable transactions, not actual market prices</li>
+    <li><strong>Smoothing bias:</strong> Appraisers tend to avoid large changes, creating artificially smooth return series</li>
+    <li><strong>Risk understatement:</strong> Reported volatility can be 50-70% lower than true economic volatility</li>
+  </ul>
+
+  <h2>How It Works</h2>
+
+  <p>
+    The de-smoothing technique removes <strong>serial correlation</strong> from the
+    return series. Serial correlation means that each reported return is partially
+    influenced by previous returns, creating the smoothing effect.
+  </p>
+
+  <h3>Mathematical Approach</h3>
+
+  <p>The basic model assumes reported returns follow:</p>
+
+  <div class="math-block">
+    $$r_{\text{reported},t} = \theta \cdot r_{\text{true},t} + (1-\theta) \cdot r_{\text{reported},t-1}$$
+  </div>
+
+  <p>Where:</p>
+  <ul>
+    <li>$\theta$ (theta) is the smoothing parameter (0 to 1)</li>
+    <li>$r_{\text{true},t}$ is the actual economic return</li>
+    <li>$r_{\text{reported},t}$ is the observed reported return</li>
+  </ul>
+
+  <p>
+    To recover true returns, we solve for $r_{\text{true},t}$ by estimating
+    $\theta$ from the data using maximum likelihood or regression methods.
+  </p>
+
+  <h2>Impact on Analysis</h2>
+
+  <p>After de-smoothing, typical changes include:</p>
+
+  <ul>
+    <li><strong>Volatility increases</strong> by 50-100% on average</li>
+    <li><strong>Correlations with public markets</strong> increase from 0.3-0.4 to 0.6-0.8</li>
+    <li><strong>Sharpe ratios decline</strong> as risk-adjusted returns normalize</li>
+    <li><strong>Beta to equity markets</strong> increases significantly</li>
+  </ul>
+
+  <hr>
+
+  <h2>Key References</h2>
+
+  <p>
+    <strong>Getmansky, M., Lo, A. W., & Makarov, I. (2004).</strong>
+    "An Econometric Model of Serial Correlation and Illiquidity in Hedge Fund Returns."
+    <em>Journal of Financial Economics</em>, 74(3), 529-609.
+  </p>
+
+  <p>
+    <strong>Ang, A., Chen, B., Goetzmann, W. N., & Phalippou, L. (2018).</strong>
+    "Estimating Private Equity Returns from Limited Partner Cash Flows."
+    <em>The Journal of Finance</em>, 73(4), 1751-1783.
+  </p>
+
+  <p>
+    <strong>Sorensen, M., & Jagannathan, R. (2015).</strong>
+    "The Public Market Equivalent and Private Equity Performance."
+    <em>Financial Analysts Journal</em>, 71(4), 43-50.
+  </p>
+</body>
+</html>
