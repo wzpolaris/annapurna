@@ -333,7 +333,7 @@ export const UploadBlock = ({ content }: UploadBlockProps) => {
     <Stack gap="md">
       <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <Text fw={600}>{config.title}</Text>
+          <Text>{config.title}</Text>
           {uploads.length > 0 ? (
             <Stack gap="xs">
               {uploads.map((entry) => (

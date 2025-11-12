@@ -243,9 +243,8 @@ def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) 
 
                     content = block['content']
                     if '\n' in content:
-                        lines.append('                "content": """')
-                        lines.append(content)
-                        lines.append('""",')
+                        # Preserve content exactly as-is, including blank lines
+                        lines.append('                "content": """' + content + '""",')
                     else:
                         lines.append(f'                "content": """{content}""",')
 
@@ -253,9 +252,8 @@ def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) 
                 lines.append("        ],")
             elif isinstance(value, str):
                 if '\n' in value:
-                    lines.append(f'        "{key}": """')
-                    lines.append(value)
-                    lines.append('""",')
+                    # Preserve content exactly as-is, including blank lines
+                    lines.append(f'        "{key}": """' + value + '""",')
                 else:
                     # Escape quotes in the string
                     escaped_value = value.replace('"', '\\"')
