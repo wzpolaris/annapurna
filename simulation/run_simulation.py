@@ -263,14 +263,18 @@ def replay_script(iterations: Iterable[ScriptIteration], video_dir: Optional[Pat
         page.goto(URL)
 
         # Send video command through browser to initialize backend
+        # The video command will display the first iteration immediately
         if video_dir:
             _send_user_message_instant(page, f"video {video_dir}")
             time.sleep(0.5)  # Brief pause for backend to process
+            _wait_for_response(page, iterations[0])  # Wait for first iteration to display
 
         cycle = 0
         try:
             while True:
-                for iteration in iterations:
+                # Skip first iteration if video_dir is set (already shown by video command)
+                start_index = 1 if video_dir else 0
+                for iteration in iterations[start_index:]:
                     primary_card = iteration.cards[0]
                     card_type = primary_card.get('cardType', 'user-assistant')
                     metadata = primary_card.get('metadata') or {}

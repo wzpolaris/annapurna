@@ -57,6 +57,11 @@ export interface AppStoreState {
     cards: ResponseCard[],
     timestamp?: string
   ) => void;
+  addCompletedMessage: (
+    conversationId: string,
+    cards: ResponseCard[],
+    timestamp?: string
+  ) => void;
   setConversationLabel: (conversationId: string, displayLabel: string) => void;
   resetConversation: (conversationId: string) => void;
 }
@@ -347,6 +352,86 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         [conversationId]: {
           ...conversation,
           pairs
+        }
+      }
+    });
+  },
+  addCompletedMessage: (conversationId, cards, timestamp) => {
+    const state = get();
+    const conversation = state.conversations[conversationId];
+    if (!conversation || !cards || cards.length === 0) {
+      return;
+    }
+
+    const resolvedTimestamp = timestamp
+      ? formatChatTimestamp(new Date(timestamp))
+      : formatChatTimestamp(new Date());
+
+    const convertBlocks = (baseId: string, blocks: ResponseBlock[]): AssistantBlock[] =>
+      blocks.map((block, index) => {
+        const blockId = `${baseId}-block-${index}`;
+        const buttons =
+          block.type === 'queryButtons'
+            ? (block.buttons ?? []).map((button, buttonIndex) => ({
+                id: button.id || `${blockId}-action-${buttonIndex}`,
+                label: button.label,
+                submission: button.submission,
+                userMessage: button.userMessage
+              }))
+            : undefined;
+
+        return {
+          id: blockId,
+          type: block.type,
+          content: block.content,
+          altText: block.altText,
+          buttons,
+          interactionCompleted:
+            block.type === 'queryButtons'
+              ? Boolean(block.interactionCompleted)
+              : undefined
+        };
+      });
+
+    // Create pairs directly from cards without thinking state
+    const newPairs: ConversationPair[] = cards.map((card, index) => {
+      const pairId = `pair-${Date.now()}-${index}`;
+      const formattedBlocks = convertBlocks(pairId, card.assistantBlocks);
+      const assistantMessage = {
+        id: `${pairId}-assistant`,
+        role: 'assistant' as const,
+        author: 'Atlas',
+        content: formattedBlocks[0]?.content,
+        blocks: formattedBlocks,
+        timestamp: resolvedTimestamp
+      };
+
+      const pair: ConversationPair = {
+        id: pairId,
+        cardType: card.cardType,
+        assistant: assistantMessage
+      };
+
+      const showUserText = card.cardType === 'user-assistant' && card.metadata?.showUserText !== false;
+      if (showUserText && card.userText) {
+        pair.user = {
+          id: `${pairId}-user`,
+          role: 'user' as const,
+          author: 'You',
+          content: card.userText,
+          timestamp: resolvedTimestamp
+        };
+      }
+
+      return pair;
+    });
+
+    set({
+      conversations: {
+        ...state.conversations,
+        [conversationId]: {
+          ...conversation,
+          pairs: [...conversation.pairs, ...newPairs]
         }
       }
     });

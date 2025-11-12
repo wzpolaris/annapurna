@@ -64,12 +64,14 @@ export default function App() {
   const activeNav = useAppStore((state) => state.activeNav);
   const activeSpaceKey = useAppStore((state) => state.activeSpaceKey);
   const activeSpaceTitle = useAppStore((state) => state.activeSpaceTitle);
+  const activeConversationId = useAppStore((state) => state.activeConversationId);
   const selectNav = useAppStore((state) => state.selectNav);
   const selectSpace = useAppStore((state) => state.selectSpace);
   const ensureConversation = useAppStore((state) => state.ensureConversation);
   const createConversation = useAppStore((state) => state.createConversation);
   const sendUserMessage = useAppStore((state) => state.sendUserMessage);
   const completeAssistantMessage = useAppStore((state) => state.completeAssistantMessage);
+  const addCompletedMessage = useAppStore((state) => state.addCompletedMessage);
   const renderTimerRef = useRef<{ label: string; started: boolean; ended: boolean } | null>(null);
   if (!renderTimerRef.current) {
     const timestamp =
@@ -225,21 +227,34 @@ export default function App() {
 
     // For system commands (video, __next__), handle specially
     if (isVideoCommand) {
-      // Video command: send to backend but don't create any UI cards
+      // Video command: send to backend and display the first slide immediately
+      // Skip thinking state by using addCompletedMessage instead of sendUserMessage
+      const conversationId = activeConversationId || ensureConversation(spaceKey, spaceTitle);
+
       try {
-        await fetch('/api/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            conversationId: '',
+            conversationId,
             spaceKey,
             spaceTitle,
             message: trimmedMessage,
             history: []
           })
         });
+
+        if (response.ok) {
+          const result = await response.json();
+          const cards = result.cards || [];
+
+          // Add the first slide directly without showing thinking state
+          if (cards.length > 0) {
+            addCompletedMessage(conversationId, cards, result.timestamp);
+          }
+        }
       } catch (error) {
         console.error('Failed to send video command', error);
       }

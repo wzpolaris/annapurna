@@ -79,20 +79,13 @@ def process_message(message: str) -> List[ResponseCard]:
 
     try:
         # Check for video directory command (e.g., "video /full/path/to/video_script/vid_test/_tmp")
-        # This command initializes video mode silently (no cards returned)
+        # This command initializes video mode and shows the first slide immediately
         if text.startswith('video '):
             dir_path = message[6:].strip()  # Remove "video " prefix
             ROUTER_STATE['video_directory'] = Path(dir_path)
-            ROUTER_STATE['video_mode'] = True
-            ROUTER_STATE['current_slide_index'] = 0  # Start at 0, first message will show iteration 0
 
-            # Load iterations and cache them
-            video_dir = Path(dir_path)
-            iterations = all_iterations(video_dir)
-            ROUTER_STATE['video_iterations'] = iterations
-
-            logger.info(f'chat router: video directory set to {dir_path}, video mode ready with {len(iterations)} iterations')
-            return []  # Silent command - no cards returned
+            logger.info(f'chat router: video directory set to {dir_path}, starting video mode')
+            response = _start_video_mode(message)
         elif ROUTER_STATE.get('video_mode'):
             response = _next_slide(message)
         else:
@@ -153,21 +146,9 @@ def _start_video_mode(user_message: str) -> List[ResponseCard]:
     ROUTER_STATE['video_mode'] = True
     ROUTER_STATE['current_slide_index'] = 1
 
-    # Build cards from iteration, but hide the video command itself
-    # If this is triggered by "video" command, don't show it as user input
+    # Build cards from first iteration
+    # The cardType is controlled by the script author (assistant-only or user-assistant)
     cards = _build_response_cards(iteration)
-
-    # If the user_message starts with "video ", this is the initialization command
-    # Mark the first card as assistant-only to hide the command
-    if user_message.lower().strip().startswith('video ') and cards:
-        first_card = cards[0]
-        # Convert to assistant-only if it has user text
-        if first_card.card_type == 'user-assistant':
-            cards[0] = ResponseCard(
-                card_type='assistant-only',
-                assistant_blocks=first_card.assistant_blocks,
-                metadata=first_card.metadata
-            )
 
     return cards
 
