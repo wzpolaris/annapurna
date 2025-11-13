@@ -105,7 +105,7 @@ async def get_drawer(filename: str):
     # If it's a .md file, convert to HTML
     if filename.endswith('.md'):
         md_content = drawer_path.read_text(encoding='utf-8')
-        
+
         # Convert markdown to HTML with extensions
         html_content = markdown.markdown(
             md_content,
@@ -150,8 +150,11 @@ async def get_drawer(filename: str):
     h2 {{ font-size: 1.25rem; font-weight: 600; color: #495057; margin: 1.5rem 0 0.75rem 0; }}
     h3 {{ font-size: 1.1rem; font-weight: 600; color: #495057; margin: 1.25rem 0 0.5rem 0; }}
     p {{ margin: 0 0 1rem 0; }}
-    ul, ol {{ margin: 0 0 1rem 1.5rem; padding: 0; }}
-    li {{ margin-bottom: 0.5rem; }}
+    ul, ol {{ margin: 0 0 1rem 0; padding-left: 2rem; list-style-position: outside; }}
+    ul ul, ol ol, ul ol, ol ul {{ margin: 0.5rem 0; }}
+    li {{ margin-bottom: 0.5rem; line-height: 1.6; }}
+    ol {{ list-style-type: decimal; }}
+    ul {{ list-style-type: disc; }}
     strong {{ font-weight: 600; }}
     code {{ background: #f1f3f5; padding: 0.125rem 0.375rem; border-radius: 3px; font-family: 'Monaco', monospace; font-size: 0.9em; }}
     pre {{ background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1rem; border: 1px solid #e9ecef; }}

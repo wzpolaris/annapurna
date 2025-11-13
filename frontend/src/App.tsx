@@ -26,6 +26,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatMessagePair } from './components/ChatMessagePair';
 import { ChatInput } from './components/ChatInput';
 import { ConversationContainer } from './components/ConversationContainer';
+import { DrawerPortal } from './components/DrawerPortal';
 import {
   DEFAULT_SPACE_KEY,
   DEFAULT_SPACE_TITLE,
@@ -60,6 +61,7 @@ const spacesCards: SpacesCardConfig[] = [
 
 export default function App() {
   const [inputValue, setInputValue] = useState('');
+  const [summaryDrawerOpen, setSummaryDrawerOpen] = useState(false);
   const conversationPairs = useAppStore(selectActiveConversationPairs);
   const activeNav = useAppStore((state) => state.activeNav);
   const activeSpaceKey = useAppStore((state) => state.activeSpaceKey);
@@ -398,7 +400,12 @@ export default function App() {
             </Text>
           </Title>
           <Group gap="xs">
-            <Button variant="light" size="sm" color="teal">
+            <Button 
+              variant="light" 
+              size="sm" 
+              color="teal"
+              onClick={() => setSummaryDrawerOpen(true)}
+            >
               Summarise
             </Button>
             <Button variant="light" size="sm" color="gray">
@@ -497,6 +504,14 @@ export default function App() {
           )}
         </ConversationContainer>
       </Flex>
+
+      {/* Summary Drawer */}
+      <DrawerPortal
+        isOpen={summaryDrawerOpen}
+        drawerId="summarize.md"
+        title="Conversation Summary"
+        onClose={() => setSummaryDrawerOpen(false)}
+      />
     </Flex>
   );
 }
