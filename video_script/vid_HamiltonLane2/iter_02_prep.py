@@ -61,3 +61,11 @@ assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 $r_{PE}_{t} = 1.15 r_{GCP}_{t} + 0.25 r_{HY}_{t} + \epsilon_{t}$
 """
+
+
+assistantBlocks_type = "markdown"
+assistantBlocks_content = """
+
+[Complete analysis report](?drawer=HLPAF_Analysis_Report.md) provides greater details.
+
+"""

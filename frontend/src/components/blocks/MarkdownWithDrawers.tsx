@@ -170,7 +170,7 @@ export const MarkdownWithDrawers = ({ content }: MarkdownWithDrawersProps) => {
                     {/* iframe content */}
                     <Box style={{ flex: 1, overflow: 'hidden' }}>
                       <iframe
-                        src={`http://localhost:8000/drawers/${drawerState.drawerId}.html`}
+                        src={`http://localhost:8000/drawers/${drawerState.drawerId}`}
                         style={{
                           width: '100%',
                           height: '100%',

@@ -4,7 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Iterable, Optional
 import argparse
 
@@ -51,7 +51,7 @@ THINKING_MESSAGE = getattr(default_config, 'DEFAULT_THINKING_MESSAGE', 'Assistan
 
 
 def _timestamped_name(prefix: str, suffix: str) -> str:
-    timestamp = datetime.utcnow().isoformat(sep=" ", timespec="microseconds")
+    timestamp = datetime.now(UTC).isoformat(sep=" ", timespec="microseconds")
     safe = timestamp.replace(":", "_").replace("-", "_")
     if "." in safe:
         head, frac = safe.split(".", 1)

@@ -80,7 +80,7 @@ How can I assist you?
             {
                 "type": "markdown",
                 "content": """As you know, this is a well documented issue with PE fund reporting, and it can lead to misleading conclusions if not properly addressed.
-[Desmoothing technique](?drawer=desmooth) techniques can be applied to attempt to extract a more realistic return series that is economically meaningful.
+[Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to extract a more realistic return series that is economically meaningful.
 """,
             },
         ],

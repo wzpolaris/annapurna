@@ -84,17 +84,96 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
-@app.get('/drawers/{drawer_id}.html')
-async def get_drawer(drawer_id: str):
-    """Serve drawer HTML files from video_script/drawers/ directory."""
+@app.get('/drawers/{filename}')
+async def get_drawer(filename: str):
+    """Serve drawer files from video_script/drawers/ directory.
+    Supports .html files directly and .md files (converted to HTML on-the-fly)."""
+    from fastapi.responses import HTMLResponse
+    import markdown
+    
     # Get the project root (backend/app/main.py -> backend -> project root)
     project_root = Path(__file__).resolve().parent.parent.parent
-    drawer_path = project_root / 'video_script' / 'drawers' / f'{drawer_id}.html'
+    drawer_path = project_root / 'video_script' / 'drawers' / filename
 
     if not drawer_path.exists():
-        raise HTTPException(status_code=404, detail=f'Drawer {drawer_id} not found')
-
-    return FileResponse(drawer_path, media_type='text/html')
+        raise HTTPException(status_code=404, detail=f'Drawer {filename} not found')
+    
+    # If it's a .html file, serve it directly
+    if filename.endswith('.html'):
+        return FileResponse(drawer_path, media_type='text/html')
+    
+    # If it's a .md file, convert to HTML
+    if filename.endswith('.md'):
+        md_content = drawer_path.read_text(encoding='utf-8')
+        
+        # Convert markdown to HTML with extensions
+        html_content = markdown.markdown(
+            md_content,
+            extensions=['extra', 'codehilite', 'tables', 'fenced_code']
+        )
+        
+        # Wrap in HTML template with KaTeX support
+        full_html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{filename}</title>
+  
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+        crossorigin="anonymous">
+  
+  <!-- KaTeX JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+          integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+          crossorigin="anonymous"></script>
+  
+  <!-- KaTeX auto-render extension -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+          crossorigin="anonymous"
+          onload="renderMathInElement(document.body, {{
+            delimiters: [
+              {{left: '$$', right: '$$', display: true}},
+              {{left: '$', right: '$', display: false}},
+              {{left: '\\\\[', right: '\\\\]', display: true}},
+              {{left: '\\\\(', right: '\\\\)', display: false}}
+            ]
+          }});"></script>
+  
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #212529; padding: 1.5rem; }}
+    h1 {{ font-size: 1.5rem; font-weight: 600; color: #228be6; margin: 0 0 1rem 0; }}
+    h2 {{ font-size: 1.25rem; font-weight: 600; color: #495057; margin: 1.5rem 0 0.75rem 0; }}
+    h3 {{ font-size: 1.1rem; font-weight: 600; color: #495057; margin: 1.25rem 0 0.5rem 0; }}
+    p {{ margin: 0 0 1rem 0; }}
+    ul, ol {{ margin: 0 0 1rem 1.5rem; padding: 0; }}
+    li {{ margin-bottom: 0.5rem; }}
+    strong {{ font-weight: 600; }}
+    code {{ background: #f1f3f5; padding: 0.125rem 0.375rem; border-radius: 3px; font-family: 'Monaco', monospace; font-size: 0.9em; }}
+    pre {{ background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1rem; border: 1px solid #e9ecef; }}
+    pre code {{ background: none; padding: 0; }}
+    a {{ color: #228be6; text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    hr {{ border: none; border-top: 1px solid #dee2e6; margin: 1.5rem 0; }}
+    blockquote {{ border-left: 3px solid #228be6; padding-left: 1rem; margin: 1rem 0; color: #495057; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+    th, td {{ border: 1px solid #dee2e6; padding: 0.5rem; text-align: left; }}
+    th {{ background: #f8f9fa; font-weight: 600; }}
+  </style>
+</head>
+<body>
+{html_content}
+</body>
+</html>'''
+        
+        return HTMLResponse(content=full_html)
+    
+    # Unsupported file type
+    raise HTTPException(status_code=400, detail=f'Unsupported file type for {filename}')
 
 
 @app.post('/chat', response_model=ChatResponse)

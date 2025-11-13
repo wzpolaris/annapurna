@@ -41,6 +41,11 @@ Technically, speaking the AR(1) term was very close to zero (actually -.04 and w
                 "content": """$r_{PE}_{t} = 1.15 r_{GCP}_{t} + 0.25 r_{HY}_{t} + \epsilon_{t}$
 """,
             },
+            {
+                "type": "markdown",
+                "content": """[Complete analysis report](?drawer=HLPAF_Analysis_Report.md) provides greater details.
+""",
+            },
         ],
     },
 ]
