@@ -86,15 +86,19 @@ assistantBlocks_content = """
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-While the reported performance is favorable compared to global equities, the monthly returns in the PDF appear to be significantly smoothed, and the series displays very low volatility.
+Reported performance is favorable compared to global equities.
 """
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-As you know, this is a well documented issue with PE fund reporting, and it can lead to misleading conclusions if not properly addressed.
+However, the monthly returns have been highly smoothed, with extremely low volatility that is not realistic.
+"""
 
-[Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to extract a more realistic return series that is economically meaningful.
-
+assistantBlocks_type = "markdown"
+assistantBlocks_content = """
+As you know, this is a well documented issue with PE fund reporting
+- Leads to wildly misleading conclusions if not properly addressed.
+- [Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to undo the smoothing effects.
 """
 
 

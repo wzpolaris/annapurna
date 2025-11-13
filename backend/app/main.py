@@ -104,13 +104,40 @@ async def get_drawer(filename: str):
     
     # If it's a .md file, convert to HTML
     if filename.endswith('.md'):
+        import re
         md_content = drawer_path.read_text(encoding='utf-8')
+
+        # Protect math expressions from markdown processing by replacing with placeholders
+        math_expressions = []
+        def save_display_math(match):
+            # Keep $$...$$ as-is (don't convert)
+            math_expressions.append(match.group(0))
+            return f"MATH_PLACEHOLDER_{len(math_expressions) - 1}_MATH"
+
+        def save_inline_math(match):
+            # Convert $...$ to \(...\) for inline math (since $ doesn't work in KaTeX auto-render)
+            math_expressions.append('\\(' + match.group(1) + '\\)')
+            return f"MATH_PLACEHOLDER_{len(math_expressions) - 1}_MATH"
+
+        # Save display math ($$...$$) first
+        md_content = re.sub(r'\$\$(.+?)\$\$', save_display_math, md_content, flags=re.DOTALL)
+        # Then save inline math ($...$)
+        md_content = re.sub(r'\$(.+?)\$', save_inline_math, md_content)
 
         # Convert markdown to HTML with extensions
         html_content = markdown.markdown(
             md_content,
-            extensions=['extra', 'codehilite', 'tables', 'fenced_code']
+            extensions=[
+                'extra',
+                'codehilite',
+                'tables',
+                'fenced_code',
+            ]
         )
+
+        # Restore math expressions
+        for i, expr in enumerate(math_expressions):
+            html_content = html_content.replace(f"MATH_PLACEHOLDER_{i}_MATH", expr)
         
         # Wrap in HTML template with KaTeX support
         full_html = f'''<!DOCTYPE html>
@@ -129,7 +156,7 @@ async def get_drawer(filename: str):
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
           integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
           crossorigin="anonymous"></script>
-  
+
   <!-- KaTeX auto-render extension -->
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
           integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
@@ -137,11 +164,12 @@ async def get_drawer(filename: str):
           onload="renderMathInElement(document.body, {{
             delimiters: [
               {{left: '$$', right: '$$', display: true}},
-              {{left: '$', right: '$', display: false}},
-              {{left: '\\\\[', right: '\\\\]', display: true}},
-              {{left: '\\\\(', right: '\\\\)', display: false}}
-            ]
-          }});"></script>
+              {{left: '\\\\(', right: '\\\\)', display: false}},
+              {{left: '\\\\[', right: '\\\\]', display: true}}
+            ],
+            throwOnError: false
+          }});">
+  </script>
   
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}

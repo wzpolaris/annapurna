@@ -6,7 +6,7 @@ pause = True
 
 cardType = "user-assistant"
 
-userText = "no, move ahead"
+userText = "do the desmoothing"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
@@ -59,7 +59,9 @@ cardType = "assistant-only"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-$r_{PE}_{t} = 1.15 r_{GCP}_{t} + 0.25 r_{HY}_{t} + \epsilon_{t}$
+$$
+r_{PE}_{t} = 1.15 r_{GCP}_{t} + 0.25 r_{HY}_{t} + \epsilon_{t}
+$$
 """
 
 

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Debug - Summarize with KaTeX</title>
+
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.css">
+
+    <!-- KaTeX core -->
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.js"></script>
+
+    <!-- Auto-render extension -->
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+              delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+              ]
+            });">
+    </script>
+
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #212529;
+        padding: 2rem;
+        max-width: 900px;
+        margin: 0 auto;
+        background: #f8f9fa;
+      }
+      .container {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .debug-info {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 4px;
+      }
+      h1, h2, h3 { color: #495057; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+      ul, ol { margin: 0 0 1rem 0; padding-left: 2rem; }
+      li { margin-bottom: 0.5rem; }
+      strong { font-weight: 600; }
+      hr { border: none; border-top: 1px solid #dee2e6; margin: 1.5rem 0; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="debug-info">
+        <strong>🐛 Debug Mode:</strong> This HTML file was generated using the same conversion process as the backend.
+        <br>Math expressions found: 1
+        <br>Open browser console (F12) to see any rendering errors.
+      </div>
+      
+<h3>Key Points Discussed:</h3>
+<ol>
+<li>
+<p><strong>Returns Analysis Issue</strong></p>
+<ul>
+<li>Published returns are heavily smoothed</li>
+<li>Not useful for meaningful economic analysis</li>
+<li>De-smoothing techniques were ineffective due to near-zero AR(1) coefficient</li>
+</ul>
+</li>
+<li>
+<p><strong>Recommendations</strong></p>
+<ul>
+<li>Use structural models of private equity as starting point</li>
+<li>Incorporate fund-specific information (Buyout vs VC, vintage year)</li>
+</ul>
+</li>
+<li>
+<p><strong>Technical Details</strong></p>
+<ul>
+<li>Proposed model: 
+$$
+        r_{PE}_{t} = 1.15 r_{GCP}_{t} + 0.25 r_{HY}_{t} + \epsilon_{t}
+    $$</li>
+<li>Full analysis available in detailed report</li>
+</ul>
+</li>
+</ol>
+<h3>Next Steps</h3>
+<ul>
+<li>Review complete analysis report for implementation details</li>
+<li>Consider alternative modeling approaches based on available data</li>
+</ul>
+<hr />
+<p><em>This summary was generated to demonstrate the drawer functionality. In production, this would be replaced with actual AI-generated summaries of the conversation.</em></p>
+    </div>
+  </body>
+</html>

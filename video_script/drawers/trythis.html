@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.css">
+
+    <!-- KaTeX core -->
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.js"></script>
+
+    <!-- Auto-render extension -->
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+              delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+              ]
+            });">
+    </script>
+  </head>
+  <body>
+    <p>
+      Here is inline math:
+      \( a^2 + b^2 = c^2 \)
+    </p>
+
+    <p>
+      And display math (THIS DOES WORK):
+      $$
+      r_{PE,t} = 1.15\, r_{GCP,t} + 0.25\, r_{HY,t} + \epsilon_t
+      $$
+
+
+    </p>
+    <p>
+      And display math (THIS DOES NOT WORK):
+      $r_{PE,t} = 1.15\, r_{GCP,t} + 0.25\, r_{HY,t} + \epsilon_t$
+  </body>
+</html>
