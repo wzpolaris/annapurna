@@ -45,7 +45,7 @@ cardType = "assistant-only"
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 
-Based on the fact sheet, here's what we're evaluating:
+Based on the fact sheet, we are analyzing the following PE fund:
 
 **Fund Structure:**
 - **Type:** '40 Act Registered, Closed-End Non-Diversified Fund with Tender Offers
@@ -57,19 +57,6 @@ Based on the fact sheet, here's what we're evaluating:
 
 """
 
-assistantBlocks_type = "markdown"
-assistantBlocks_content = """
-Are there specific things you would like examine?
-"""
-
-# --TURN--
-
-delay = 2.0
-pause = True
-
-cardType = "user-assistant"
-
-userText = "performance and risk"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
@@ -104,44 +91,41 @@ While the reported performance is favorable compared to global equities, the mon
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-This is a known issue with PE fund reporting, and it can lead to misleading conclusions if not properly addressed.
-"""
+As you know, this is a well documented issue with PE fund reporting, and it can lead to misleading conclusions if not properly addressed.
 
-
-
-# --TURN--
-
-delay = 2.0
-pause = True
-
-cardType = "user-assistant"
-
-userText = "How do you address?"
-
-assistantBlocks_type = "markdown"
-assistantBlocks_content = """
-
-**General information on smoothing and appraisal bias...**
-
-An issue with reported private equity returns is that they are appraisal-based, not transaction-based, and this results in artificially smooth time series. The smoothing then leads to several well-documented issues:
-- Understatment of estimated volatility and true economic risk.
-- Lower estimated correlations of PE with public markets.
-- Masking of tail and liquidity risks, especially during crises
-
-Technically speaking, smoothing is the result of [serial correlation](?drawer=serial_correlation) in the reported returns. So, a "de-smoothing" analytical adjustment is often applied to get a better estimate the true risk and return characteristics of PE investments.
-
-As result, often a [desmoothing technique](?drawer=desmooth) is applied on the Fund's reported returns if the time series is to be used in standard performance and risk analyses including scenario testing, optimization, etc.
-
-I will apply the technique to the Hamilton Lane fund's returns.
-
----
-
-Selected references related to the smoothing of returns:
-- Sorensen & Jagannathan (2014) "The Public Market Equivalent and Private Equity Performance."
-Netspar Discussion Paper, 09/2013-039.
-- Ang, Andrew, Bingxu Chen, William N. Goetzmann, and Ludovic Phalippou.
-"Estimating Private Equity Returns from Limited Partner Cash Flows."
-Pacific-Basin Finance Journal 50 (2018): 96–118.
-https://doi.org/10.1016/j.pacfin.2017.04.012
+[Desmoothing technique](?drawer=desmooth) techniques can be applied to attempt to extract a more realistic return series that is economically meaningful.
 
 """
+
+
+# # --TURN--
+
+# delay = 2.0
+# pause = True
+
+# cardType = "user-assistant"
+
+# userText = "How do you address?"
+
+# assistantBlocks_type = "markdown"
+# assistantBlocks_content = """
+# An issue with reported private equity returns is that they are appraisal-based, not transaction-based, and this results in artificially smoothing of the return time series.  
+
+# This then leads to several well-documented issues:
+# - Understatment of estimated volatility and true economic risk.
+# - Lower estimated correlations of PE with public markets.
+# - Masking of tail and liquidity risks, especially during crises
+
+# Technically speaking, serial correlation is artificially created in the reported returns. 
+# As result, when analyzing PE, often a [desmoothing technique](?drawer=desmooth) is applied to the Fund's reported returns.
+
+# So, a "de-smoothing" analytical adjustment is often applied to get a better estimate the true risk and return characteristics of PE investments.
+# if the time series is to be used in standard performance and risk analyses including scenario testing, optimization, etc.
+
+# I will apply the technique to the Hamilton Lane fund's returns.
+
+# Before we proceed, any questions about appraisal based returns, smoothing/de-smoothing, serial correlation, etc?
+
+# """
+
+

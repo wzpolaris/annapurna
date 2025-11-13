@@ -25,9 +25,14 @@ Example output:
     ]
 """
 
+import base64
+import mimetypes
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+IMG_SRC_PATTERN = re.compile(r'(<img\b[^>]*?\bsrc\s*=\s*)(["\'])([^"\']+)\2', re.IGNORECASE)
 
 
 def parse_simple_format(content: str) -> List[Dict[str, Any]]:
@@ -200,6 +205,109 @@ def parse_simple_format(content: str) -> List[Dict[str, Any]]:
     return turns
 
 
+def _encode_file_to_data_uri(path: Path) -> str:
+    mime, _ = mimetypes.guess_type(path.name)
+    mime = mime or 'application/octet-stream'
+    encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+    return f'data:{mime};base64,{encoded}'
+
+
+def _resolve_asset_path(value: str, script_dir: Path) -> Optional[Path]:
+    """
+    Resolve asset path searching in these locations only (in order):
+    1. <current_video_folder>/
+    2. <current_video_folder>/images/
+    3. video_script/images/
+    """
+    trimmed = value.strip()
+    if not trimmed:
+        return None
+
+    # Handle absolute paths directly
+    expanded = Path(trimmed).expanduser()
+    if expanded.is_absolute():
+        if expanded.is_file():
+            return expanded.resolve()
+        return None
+
+    # Strip leading ./ if present
+    normalized = trimmed.lstrip('./')
+    filename = Path(normalized)
+
+    # Search locations in order
+    search_locations = [
+        script_dir / filename,                          # 1. Current video folder
+        script_dir / 'images' / filename,               # 2. Current video folder/images/
+        REPO_ROOT / 'video_script' / 'images' / filename  # 3. video_script/images/
+    ]
+
+    for candidate in search_locations:
+        if candidate.is_file():
+            return candidate.resolve()
+
+    return None
+
+
+def _inline_html_images(html: str, script_dir: Path) -> str:
+    def replacer(match: re.Match[str]) -> str:
+        prefix, quote, src = match.groups()
+        normalized = src.strip()
+        if not normalized:
+            return match.group(0)
+        lower = normalized.lower()
+        if lower.startswith(('data:', 'http://', 'https://')):
+            return match.group(0)
+        if lower.startswith('file://'):
+            normalized = normalized[7:]
+        asset_path = _resolve_asset_path(normalized, script_dir)
+        if not asset_path:
+            print(f"⚠ HTML image asset not found: {normalized}")
+            return match.group(0)
+        try:
+            data_uri = _encode_file_to_data_uri(asset_path)
+        except OSError as exc:
+            print(f"⚠ Failed to embed HTML image '{asset_path}': {exc}")
+            return match.group(0)
+        return f"{prefix}{quote}{data_uri}{quote}"
+
+    return IMG_SRC_PATTERN.sub(replacer, html)
+
+
+def inline_external_assets(turns: List[Dict[str, Any]], script_path: Path) -> None:
+    """
+    Replace image block content or <img> tags that reference local files with inlined data URIs.
+    """
+    script_dir = script_path.parent
+    for turn in turns:
+        blocks = turn.get('assistantBlocks') or []
+        for block in blocks:
+            block_type = block.get('type')
+            content = block.get('content')
+            if block_type == 'markdown' and isinstance(content, str):
+                if '\\n' in content:
+                    # Replace literal '\n' tokens with actual line feeds so authors can type \n\n for breaks.
+                    block['content'] = content.replace('\\n', '\n')
+            elif block_type == 'image':
+                if not isinstance(content, str):
+                    continue
+                normalized = content.strip()
+                if not normalized:
+                    continue
+                lower = normalized.lower()
+                if lower.startswith(('data:', 'http://', 'https://')):
+                    continue
+                if lower.startswith('file://'):
+                    normalized = normalized[7:]
+                asset_path = _resolve_asset_path(normalized, script_dir)
+                if not asset_path:
+                    print(f"⚠ Image asset not found: {normalized}")
+                    continue
+                try:
+                    block['content'] = _encode_file_to_data_uri(asset_path)
+                except OSError as exc:
+                    print(f"⚠ Failed to embed image '{asset_path}': {exc}")
+            elif block_type == 'html' and isinstance(content, str):
+                block['content'] = _inline_html_images(content, script_dir)
 def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) -> str:
     """
     Format TURNS list as Python code with proper indentation.
@@ -420,6 +528,8 @@ def convert_file(input_path: Path, output_path: Path = None) -> None:
     if not turns:
         print(f"⚠ No turns found in {input_path.name}")
         return
+
+    inline_external_assets(turns, input_path)
 
     # Format output
     output = format_turns_output(turns, imports)
