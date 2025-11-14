@@ -8,13 +8,10 @@ userText = "slides"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-
-Welcome to Lumenta\n
+Welcome to Avatar
 \n
 How can I assist you?
-
 """
-
 
 from backend.app.upload_block import upload_block_component
 
@@ -25,7 +22,7 @@ pause = True
 
 cardType = "user-assistant"
 
-userText = "I want to analyze a specific PE fund"
+userText = "I want to analyze a PE fund"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = "Ok. Provide me with whatever relevant information you have."
@@ -33,14 +30,13 @@ assistantBlocks_content = "Ok. Provide me with whatever relevant information you
 assistantBlocks_type = "upload"
 assistantBlocks_content = upload_block_component()
 
-
 # --TURN--
 
 delay = 5.0
 pause = True
-cardType = "assistant-only"
+cardType = "user-assistant"
 
-#userText = "The factsheet has been uploaded."
+userText = "The fact sheet has been uploaded."
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
@@ -56,7 +52,6 @@ Based on the fact sheet, we are analyzing the following PE fund:
 - **Portfolio:** 157 investments across 153 general partners
 
 """
-
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """

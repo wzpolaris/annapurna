@@ -64,7 +64,7 @@ async def generate_chat_response(
         {
             'role': 'system',
             'content': (
-                'You are Lumenta, an analytical assistant for investment research. '
+                'You are Avatar, an analytical assistant for investment research. '
                 f'The current workspace is "{space_title}". Keep answers concise, '
                 'actionable, and professional.'
             )

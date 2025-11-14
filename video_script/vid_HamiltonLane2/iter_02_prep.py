@@ -1,7 +1,7 @@
 
 # --TURN--
 
-delay = 1.0
+delay = 3.0
 pause = True
 
 cardType = "user-assistant"
@@ -65,4 +65,19 @@ assistantBlocks_content = """
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 - As a result, desmoothing does not yield a series that has any meaningful information.
+"""
+
+delay = 1.0
+pause = True
+
+cardType = "assistant-only"
+
+assistantBlocks_type = "markdown"
+assistantBlocks_content = """
+Returns are not going to provide any useful information about risk.\n
+\n
+So, from here, we can proceed by overlaying Fund information on top of
+Northfield structural PE model to estimate risk parameters.\n
+\n
+Shall we proceed with this approach?
 """

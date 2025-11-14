@@ -41,7 +41,7 @@ const AssistantPending = () => (
   <Group align="center" gap="xs" data-testid="assistant-pending">
     <Loader size="sm" color="teal" type="dots" />
     <Text size="sm" c="dimmed">
-      Lumenta is thinking…
+      Avatar is thinking…
     </Text>
   </Group>
 );
@@ -113,7 +113,7 @@ const renderBlock = (
 
 export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) => {
   const hasUser = Boolean(pair.user?.content);
-  const headerLabel = hasUser ? pair.user?.author ?? 'You' : 'Lumenta';
+  const headerLabel = hasUser ? pair.user?.author ?? 'You' : 'Avatar';
   const timestamp = pair.assistant?.timestamp ?? pair.user?.timestamp ?? '';
 
   return (

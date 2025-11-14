@@ -396,7 +396,7 @@ export default function App() {
           <Title order={2} fw={600} c={conversationExchangeTitleColor}>
             NORTHFIELD{' '}
             <Text component="span" inherit fs="italic">
-              Lumenta
+              Avatar
             </Text>
           </Title>
           <Group gap="xs">

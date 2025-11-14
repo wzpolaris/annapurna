@@ -1,25 +1,9 @@
 
 
-# --TURN--
-
-delay = 1.0
-pause = True
-
-cardType = "assistant-only"
-
-assistantBlocks_type = "markdown"
-assistantBlocks_content = """
-Returns are not going to provide any useful information about risk.\n
-So, from here, we can proceed by overlaying Fund information on top of
-Northfield structural PE model to estimate risk parameters.
-
-
-Shall we proceed with this approach?
-"""
 
 # --TURN--
 
-delay = 1.0
+delay = 3.0
 pause = True
 
 cardType = "user-assistant"
@@ -79,9 +63,9 @@ assistantBlocks_content = """
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 
-You may like to review [additional details](?drawer=PE-structural.html) about the Northfield PE structural models.
-
-Next we will apply the overlays using information from the Hamilton Lane Fund
-
+You may like to review [additional details](?drawer=PE-structural.html) about the Northfield PE structural models.\n
+\n
+Next we will apply the overlays using information from the Hamilton Lane Fund\n
+\n
 When you are ready to proceed, just let me know.
 """

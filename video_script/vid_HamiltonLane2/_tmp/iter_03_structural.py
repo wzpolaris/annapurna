@@ -1,21 +1,6 @@
 TURNS = [
     {
-        "delay": 1.0,
-        "pause": True,
-        "cardType": "assistant-only",
-        "assistantBlocks": [
-            {
-                "type": "markdown",
-                "content": """Returns are not going to provide any useful information about risk.
-
-So, from here, we can proceed by overlaying Fund information on top of
-Northfield structural PE model to estimate risk parameters.
-Shall we proceed with this approach?""",
-            },
-        ],
-    },
-    {
-        "delay": 1.0,
+        "delay": 3.0,
         "pause": True,
         "cardType": "user-assistant",
         "userText": "Tell me how the model works",
@@ -67,7 +52,13 @@ $$
             {
                 "type": "markdown",
                 "content": """You may like to review [additional details](?drawer=PE-structural.html) about the Northfield PE structural models.
+
+
+
 Next we will apply the overlays using information from the Hamilton Lane Fund
+
+
+
 When you are ready to proceed, just let me know.""",
             },
         ],

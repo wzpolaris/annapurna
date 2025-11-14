@@ -7,8 +7,7 @@ TURNS = [
         "assistantBlocks": [
             {
                 "type": "markdown",
-                "content": """Welcome to Lumenta
-
+                "content": """Welcome to Avatar
 
 
 How can I assist you?""",
@@ -19,20 +18,8 @@ How can I assist you?""",
         "delay": 2.0,
         "pause": True,
         "cardType": "user-assistant",
-        "userText": "I want to analyze a specific PE fund",
+        "userText": "I want to analyze a PE fund",
         "assistantBlocks": [
-            {
-                "type": "markdown",
-                "content": """$$
-y = \\beta x
-$$""",
-            },
-            {
-                "type": "markdown",
-                "content": """<div>
-    $ y = \\beta x $
-</div>""",
-            },
             {
                 "type": "markdown",
                 "content": "Ok. Provide me with whatever relevant information you have.",
@@ -46,7 +33,8 @@ $$""",
     {
         "delay": 5.0,
         "pause": True,
-        "cardType": "assistant-only",
+        "cardType": "user-assistant",
+        "userText": "The fact sheet has been uploaded.",
         "assistantBlocks": [
             {
                 "type": "markdown",

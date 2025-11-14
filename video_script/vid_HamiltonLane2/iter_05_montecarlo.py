@@ -21,3 +21,13 @@ Following are probability distributions for the Fund and the S&P500
 assistantBlocks_type = "image"
 assistantBlocks_content = "hlpaf_monte_carlo_distributions.png"
 
+# Then show the image
+assistantBlocks_type = "markdown"
+assistantBlocks_content = """
+The preliminary analysis is completed. Let me know if you would like to continue.
+\n\n
+If you click the Summarize button, I will summarize what we have done.
+
+Also, I can prepare a more (detailed report](?)
+
+"""

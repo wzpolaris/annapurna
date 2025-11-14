@@ -48,7 +48,7 @@ KATEX_LOCAL_CANDIDATES = [
     REPO_ROOT / "node_modules" / "katex" / "dist",
 ]
 
-FORCE_INSTANT_SEND = True  # set False to restore typing
+FORCE_INSTANT_SEND = False  # set False to restore typing
 TYPING_MODE = (getattr(default_config, 'DEFAULT_TYPING_MODE', 'auto') or 'auto').strip().lower()
 AUTO_TYPING_WPM = 44.0
 LOOP_ITERATIONS = max(int(getattr(default_config, 'DEFAULT_LOOP_ITERATIONS', 1)), 0)
@@ -101,12 +101,13 @@ def _enable_offline_katex_assets(context: BrowserContext) -> None:
 
 
 def _timestamped_name(prefix: str, suffix: str) -> str:
-    timestamp = datetime.now(UTC).isoformat(sep=" ", timespec="microseconds")
-    safe = timestamp.replace(":", "_").replace("-", "_")
-    if "." in safe:
-        head, frac = safe.split(".", 1)
-        safe = f"{head}_{frac[:3]}"
-    return f"{prefix}_{safe}.{suffix}"
+    now = datetime.now(UTC)
+    # Format: video_2025_11_14 21_18_49_916
+    date_part = now.strftime("%Y_%m_%d")
+    time_part = now.strftime("%H_%M_%S")
+    millis = f"{now.microsecond // 1000:03d}"
+    timestamp = f"{date_part} {time_part}_{millis}"
+    return f"{prefix}_{timestamp}.{suffix}"
 
 
 def _show_thinking_indicator(page: Page, wait_ms: int) -> None:
@@ -382,9 +383,6 @@ def replay_script(iterations: Iterable[ScriptIteration], video_dir: Optional[Pat
             except KeyboardInterrupt:
                 pass
 
-        context.close()
-        browser.close()
-
         if target_webm_path and page.video:
             try:
                 raw_path = Path(page.video.path())
@@ -393,6 +391,9 @@ def replay_script(iterations: Iterable[ScriptIteration], video_dir: Optional[Pat
                 video_path = str(final_webm)
             except Exception:
                 video_path = None
+
+        context.close()
+        browser.close()
 
     if video_path:
         print(f"Video saved to: {video_path}", flush=True)

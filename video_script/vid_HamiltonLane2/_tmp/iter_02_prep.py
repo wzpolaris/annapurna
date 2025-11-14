@@ -2,7 +2,7 @@ TURNS = [
     {
         "delay": 1.0,
         "pause": True,
-        "cardType": "user-assistant",
+        "cardType": "assistant-only",
         "userText": "go ahead with the desmoothing",
         "assistantBlocks": [
             {
@@ -62,6 +62,19 @@ So much so, that it can be seen in simple visual inspection in plots:""",
             {
                 "type": "markdown",
                 "content": "- As a result, desmoothing does not yield a series that has any meaningful information.",
+            },
+            {
+                "type": "markdown",
+                "content": """Returns are not going to provide any useful information about risk.
+
+
+
+So, from here, we can proceed by overlaying Fund information on top of
+Northfield structural PE model to estimate risk parameters.
+
+
+
+Shall we proceed with this approach?""",
             },
         ],
     },
