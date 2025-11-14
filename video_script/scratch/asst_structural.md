@@ -3,18 +3,16 @@ Based on the formula in formulas.md and the detailed analysis report, here's a s
 
 ## Structural Model Factors
 
-**Model:** $r_{PE_t} = \beta_{GSC_t} GSC_t + \beta_{SPRD_t} SPRD_t + \beta_{INNOV_t} INNOV_t + \beta_{TAIL_t} TAIL_t + \epsilon_{t}$
+**Model:** $r_{PE_t} = \beta_{SC_t} SC_t + \beta_{SPRD_t} SPRD_t + \beta_{INNOV_t} INNOV_t + \beta_{TAIL_t} TAIL_t + \epsilon_{t}$
 
-(Note: The documentation uses **SC, CS, INNOV, TAIL** - where SC appears to be the same as GSC, and CS appears to be the same as SPRD)
-
-### **SC (Small Cap / Global Small Cap)**
+### **SC (Small Cap)**
 - **Market factor** representing small-cap equity exposure
 - Captures linear market risk and equity sensitivity
 - HLPAF beta: ~0.11 (calibrated), ~1.63 (structural)
 - Contributes ~4.5% of total variance
 - Mean monthly return: 0.83%
 
-### **CS (Credit Spread)**
+### **SPRD (Credit Spread)**
 - **Credit risk factor** measuring corporate credit conditions
 - Reflects stress in credit markets and funding costs
 - HLPAF beta: ~0.05 (calibrated), ~0.76 (structural)

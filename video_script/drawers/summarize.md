@@ -8,9 +8,10 @@
 
 2.  **Northfield PE Structural Model Applied**
     - Northfield structural models of private equity from asset class perspective used as starting point.
-    - PE (Buyout):  
+   
+    - Private Equity:  
 
-          <span style="color: blue">$r_{PE_t} = \beta_{GSC_t} {\small GlobalSmallCap_t} + \beta_{CE_t}{\small CreditEffect_t} + \beta_{NLS_t} {\small NonLinearStressEffect_t} +  \epsilon_{t}$</span>
+          <span style="color: blue">$r_{PE_t} = \beta_{GSC_t} {\small GlobalSmallCap_t} + \beta_{CE_t}{\small CreditEffect_t} + \beta_{CE_t}{\small Innov_t} + \beta_{NLS_t} {\small CrisisEffect_t} +  \epsilon_{t}$</span>
 
     - HamiltonLane's fund-specific information (e.g. Fund Buyout % vs VC%, vintage year, economic sector, etc.) <span style="background-color: #a7ffff">superimposed on the structural model</span>
 

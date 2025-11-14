@@ -9,23 +9,39 @@ import {
   Text,
   Title
 } from '@mantine/core';
+import { useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import type { AssistantBlock, ConversationPair } from '../types/chat';
 import { conversationExchangeTitleColor } from '../theme/colors';
 import { UploadBlock } from './blocks/UploadBlock';
 import { MarkdownWithDrawers } from './blocks/MarkdownWithDrawers';
 import Pdf2pViewerBlock from './blocks/pdf2p/Pdf2pViewerBlock';
+import { runKatexAutoRender } from '../utils/katex';
 
 interface ChatMessagePairProps {
   pair: ConversationPair;
   onQuickReply?: (submission: string, displayMessage?: string) => void;
 }
 
+const HtmlBlock = ({ content }: { content: string }) => {
+  const htmlRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    runKatexAutoRender(htmlRef.current);
+  }, [content]);
+
+  return (
+    <Paper withBorder radius="sm" p="sm">
+      <Box ref={htmlRef} dangerouslySetInnerHTML={{ __html: content }} />
+    </Paper>
+  );
+};
+
 const AssistantPending = () => (
   <Group align="center" gap="xs" data-testid="assistant-pending">
     <Loader size="sm" color="teal" type="dots" />
     <Text size="sm" c="dimmed">
-      Atlas is thinking…
+      Lumenta is thinking…
     </Text>
   </Group>
 );
@@ -88,11 +104,7 @@ const renderBlock = (
     case 'upload':
       return <UploadBlock content={block.content} />;
     case 'html':
-      return (
-        <Paper withBorder radius="sm" p="sm">
-          <Box dangerouslySetInnerHTML={{ __html: block.content }} />
-        </Paper>
-      );
+      return <HtmlBlock content={block.content} />;
     case 'markdown':
     default:
       return <MarkdownWithDrawers content={block.content} />;
@@ -101,7 +113,7 @@ const renderBlock = (
 
 export const ChatMessagePair = ({ pair, onQuickReply }: ChatMessagePairProps) => {
   const hasUser = Boolean(pair.user?.content);
-  const headerLabel = hasUser ? pair.user?.author ?? 'You' : 'Atlas';
+  const headerLabel = hasUser ? pair.user?.author ?? 'You' : 'Lumenta';
   const timestamp = pair.assistant?.timestamp ?? pair.user?.timestamp ?? '';
 
   return (

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+import mimetypes
 from pathlib import Path
 from datetime import datetime, UTC
 from typing import Iterable, Optional
@@ -12,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 from simulation import ScriptIteration, all_iterations
 import simulation.config as default_config
@@ -40,6 +41,12 @@ KEEP_OPEN = bool(default_config.DEFAULT_KEEP_OPEN)
 WEBM_DIR = default_config.DEFAULT_WEBM_DIR or None
 MP4_DIR = default_config.DEFAULT_MP4_DIR or None
 FFMPEG_PATH = default_config.DEFAULT_FFMPEG_PATH or None
+KATEX_VERSION = getattr(default_config, 'DEFAULT_KATEX_VERSION', '0.16.25')
+KATEX_CDN_PREFIX = f"https://cdn.jsdelivr.net/npm/katex@{KATEX_VERSION}/dist/"
+KATEX_LOCAL_CANDIDATES = [
+    REPO_ROOT / "frontend" / "node_modules" / "katex" / "dist",
+    REPO_ROOT / "node_modules" / "katex" / "dist",
+]
 
 FORCE_INSTANT_SEND = True  # set False to restore typing
 TYPING_MODE = (getattr(default_config, 'DEFAULT_TYPING_MODE', 'auto') or 'auto').strip().lower()
@@ -48,6 +55,49 @@ LOOP_ITERATIONS = max(int(getattr(default_config, 'DEFAULT_LOOP_ITERATIONS', 1))
 
 SHOW_THINKING = False  # Thinking overlay disabled by default
 THINKING_MESSAGE = getattr(default_config, 'DEFAULT_THINKING_MESSAGE', 'Assistant is thinking…')
+
+
+def _resolve_katex_dist_dir() -> Optional[Path]:
+    for candidate in KATEX_LOCAL_CANDIDATES:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _enable_offline_katex_assets(context: BrowserContext) -> None:
+    """
+    Serve KaTeX assets locally so math renders even without CDN access.
+    """
+    katex_dist = _resolve_katex_dist_dir()
+    if not katex_dist:
+        print("⚠ KaTeX offline assets not found; math rendering will rely on CDN access.", flush=True)
+        return
+
+    pattern = KATEX_CDN_PREFIX + "**"
+
+    def handle(route, request):
+        if not request.url.startswith(KATEX_CDN_PREFIX):
+            route.continue_()
+            return
+        relative_url = request.url[len(KATEX_CDN_PREFIX):].split("?", 1)[0]
+        local_path = (katex_dist / relative_url).resolve()
+        try:
+            local_path.relative_to(katex_dist)
+        except ValueError:
+            print(f"⚠ Blocked unexpected KaTeX asset path: {relative_url}", flush=True)
+            route.abort()
+            return
+
+        if not local_path.is_file():
+            print(f"⚠ Missing local KaTeX asset: {relative_url}", flush=True)
+            route.continue_()
+            return
+
+        content_type, _ = mimetypes.guess_type(local_path.name)
+        route.fulfill(path=str(local_path), content_type=content_type or "application/octet-stream")
+
+    context.route(pattern, handle)
+    print(f"✓ Serving KaTeX assets offline from {katex_dist}", flush=True)
 
 
 def _timestamped_name(prefix: str, suffix: str) -> str:
@@ -259,6 +309,7 @@ def replay_script(iterations: Iterable[ScriptIteration], video_dir: Optional[Pat
             context_kwargs["record_video_dir"] = str(webm_base)
             context_kwargs["record_video_size"] = {"width": 1280, "height": 720}
         context = browser.new_context(**context_kwargs)
+        _enable_offline_katex_assets(context)
         page = context.new_page()
         page.goto(URL)
 

@@ -29,6 +29,7 @@ import base64
 import mimetypes
 import re
 from pathlib import Path
+from textwrap import dedent
 from typing import Any, Dict, List, Optional, Set
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -284,9 +285,8 @@ def inline_external_assets(turns: List[Dict[str, Any]], script_path: Path) -> No
             block_type = block.get('type')
             content = block.get('content')
             if block_type == 'markdown' and isinstance(content, str):
-                if '\\n' in content:
-                    # Replace literal '\n' tokens with actual line feeds so authors can type \n\n for breaks.
-                    block['content'] = content.replace('\\n', '\n')
+                normalized = content.replace('\\n', '\n') if '\\n' in content else content
+                block['content'] = dedent(normalized).strip()
             elif block_type == 'image':
                 if not isinstance(content, str):
                     continue
@@ -307,7 +307,8 @@ def inline_external_assets(turns: List[Dict[str, Any]], script_path: Path) -> No
                 except OSError as exc:
                     print(f"⚠ Failed to embed image '{asset_path}': {exc}")
             elif block_type == 'html' and isinstance(content, str):
-                block['content'] = _inline_html_images(content, script_dir)
+                html_content = dedent(content)
+                block['content'] = _inline_html_images(html_content, script_dir)
 def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) -> str:
     """
     Format TURNS list as Python code with proper indentation.
@@ -330,6 +331,12 @@ def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) 
 
     lines.append("TURNS = [")
 
+    def escape_multiline(value: str) -> str:
+        return value.replace('\\', '\\\\').replace('"""', '\\"""')
+
+    def escape_singleline(value: str) -> str:
+        return value.replace('\\', '\\\\').replace('"', '\\"')
+
     for turn in turns:
         lines.append("    {")
 
@@ -351,21 +358,17 @@ def format_turns_output(turns: List[Dict[str, Any]], imports: List[str] = None) 
 
                     content = block['content']
                     if '\n' in content:
-                        # Preserve content exactly as-is, including blank lines
-                        lines.append('                "content": """' + content + '""",')
+                        lines.append('                "content": """' + escape_multiline(content) + '""",')
                     else:
-                        lines.append(f'                "content": """{content}""",')
+                        lines.append(f'                "content": "{escape_singleline(content)}",')
 
                     lines.append("            },")
                 lines.append("        ],")
             elif isinstance(value, str):
                 if '\n' in value:
-                    # Preserve content exactly as-is, including blank lines
-                    lines.append(f'        "{key}": """' + value + '""",')
+                    lines.append(f'        "{key}": """' + escape_multiline(value) + '""",')
                 else:
-                    # Escape quotes in the string
-                    escaped_value = value.replace('"', '\\"')
-                    lines.append(f'        "{key}": "{escaped_value}",')
+                    lines.append(f'        "{key}": "{escape_singleline(value)}",')
             elif isinstance(value, bool):
                 lines.append(f'        "{key}": {str(value)},')
             elif isinstance(value, (int, float)):

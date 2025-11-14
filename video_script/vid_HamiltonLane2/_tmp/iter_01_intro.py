@@ -7,9 +7,11 @@ TURNS = [
         "assistantBlocks": [
             {
                 "type": "markdown",
-                "content": """Welcome to the Northfield AI powered Analytics Engine.
-How can I assist you?
-""",
+                "content": """Welcome to Lumenta
+
+
+
+How can I assist you?""",
             },
         ],
     },
@@ -21,11 +23,23 @@ How can I assist you?
         "assistantBlocks": [
             {
                 "type": "markdown",
-                "content": """Ok. Provide me with whatever relevant information you have.""",
+                "content": """$$
+y = \\beta x
+$$""",
+            },
+            {
+                "type": "markdown",
+                "content": """<div>
+    $ y = \\beta x $
+</div>""",
+            },
+            {
+                "type": "markdown",
+                "content": "Ok. Provide me with whatever relevant information you have.",
             },
             {
                 "type": "upload",
-                "content": """upload_block_component()""",
+                "content": "upload_block_component()",
             },
         ],
     },
@@ -43,13 +57,11 @@ How can I assist you?
 - **AUM:** $4.67 billion (as of August 31, 2025)
 - **Inception:** September 2020 (as Evergreen Private Fund L.P.), converted January 2021
 - **Strategy:** Direct co-investments (49%) and secondary transactions (51%) in private equity
-- **Portfolio:** 157 investments across 153 general partners
-""",
+- **Portfolio:** 157 investments across 153 general partners""",
             },
             {
                 "type": "markdown",
-                "content": """I have extracted returns for the Institutional(I) Shares. 
-""",
+                "content": "I have extracted returns for the Institutional(I) Shares.",
             },
             {
                 "type": "html",
@@ -74,20 +86,17 @@ How can I assist you?
             },
             {
                 "type": "markdown",
-                "content": """Reported performance is favorable compared to global equities.
-""",
+                "content": "Reported performance is favorable compared to global equities.",
             },
             {
                 "type": "markdown",
-                "content": """However, the monthly returns have been highly smoothed, with extremely low volatility that is not realistic.
-""",
+                "content": "However, the monthly returns have been highly smoothed, with extremely low volatility that is not realistic.",
             },
             {
                 "type": "markdown",
                 "content": """As you know, this is a well documented issue with PE fund reporting
 - Leads to wildly misleading conclusions if not properly addressed.
-- [Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to undo the smoothing effects.
-""",
+- [Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to undo the smoothing effects.""",
             },
         ],
     },

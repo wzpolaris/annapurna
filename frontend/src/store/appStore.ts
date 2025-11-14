@@ -276,7 +276,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     const primaryAssistant = {
       id: `${pairId}-assistant`,
       role: 'assistant' as const,
-      author: 'Atlas',
+      author: 'Lumenta',
       content: primaryBlocks[0]?.content,
       blocks: primaryBlocks,
       timestamp: resolvedTimestamp
@@ -318,7 +318,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       const assistantMessage = {
         id: `${newPairId}-assistant`,
         role: 'assistant' as const,
-        author: 'Atlas',
+        author: 'Lumenta',
         content: formattedBlocks[0]?.content,
         blocks: formattedBlocks,
         timestamp: resolvedTimestamp
@@ -400,7 +400,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       const assistantMessage = {
         id: `${pairId}-assistant`,
         role: 'assistant' as const,
-        author: 'Atlas',
+        author: 'Lumenta',
         content: formattedBlocks[0]?.content,
         blocks: formattedBlocks,
         timestamp: resolvedTimestamp

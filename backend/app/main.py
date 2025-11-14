@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import logging
+import re
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .openai_client import OpenAIConfigurationError, generate_chat_response
 from .mock_response import generate_mock_blocks, generate_upload_block
@@ -38,7 +40,9 @@ except ImportError:
     CONCURRENT_LOGGING = False
     print("Warning: concurrent-log-handler not installed. Using standard FileHandler.")
 
-log_dir = Path(__file__).resolve().parent.parent.parent / 'logs'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+log_dir = PROJECT_ROOT / 'logs'
 log_dir.mkdir(parents=True, exist_ok=True)
 log_file = log_dir / 'fastapi.log'
 
@@ -62,6 +66,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger('main.fastapi')
 
+KATEX_VERSION = "0.16.25"
+KATEX_CDN_BASE = f"https://cdn.jsdelivr.net/npm/katex@{KATEX_VERSION}/dist"
+KATEX_STATIC_CANDIDATES = [
+    PROJECT_ROOT / 'frontend' / 'node_modules' / 'katex' / 'dist',
+    PROJECT_ROOT / 'node_modules' / 'katex' / 'dist',
+]
+KATEX_BASE_URL = KATEX_CDN_BASE
+
+
+def _katex_asset(path: str) -> str:
+    base = KATEX_BASE_URL.rstrip('/')
+    relative = path.lstrip('/')
+    return f"{base}/{relative}"
+
+
+_KATEX_URL_REPLACEMENTS = [
+    (re.compile(r"https://cdn\.jsdelivr\.net/npm/katex@[\d\.]+/dist/katex\.min\.css"), "katex.min.css"),
+    (re.compile(r"https://cdn\.jsdelivr\.net/npm/katex@[\d\.]+/dist/katex\.min\.js"), "katex.min.js"),
+    (re.compile(r"https://cdn\.jsdelivr\.net/npm/katex@[\d\.]+/dist/contrib/auto-render\.min\.js"), "contrib/auto-render.min.js"),
+]
+
+
+def _rewrite_katex_assets(html: str) -> str:
+    rewritten = html
+    for pattern, relative in _KATEX_URL_REPLACEMENTS:
+        rewritten = pattern.sub(_katex_asset(relative), rewritten)
+
+    if KATEX_BASE_URL.startswith("/"):
+        rewritten = re.sub(r'(<[^>]+katex[^>]+)\s+integrity="[^"]+"', r'\1', rewritten)
+        rewritten = re.sub(r'(<[^>]+katex[^>]+)\s+crossorigin="[^"]+"', r'\1', rewritten)
+
+    return rewritten
 
 app = FastAPI(
     title='Northfield Backend',
@@ -78,6 +114,15 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+for candidate in KATEX_STATIC_CANDIDATES:
+    if candidate.is_dir():
+        app.mount("/katex", StaticFiles(directory=candidate), name="katex")
+        KATEX_BASE_URL = "/katex"
+        logger.info("Serving KaTeX assets from %s", candidate)
+        break
+else:
+    logger.warning("KaTeX assets not found locally; falling back to CDN.")
+
 
 @app.get('/health', response_model=HealthResponse)
 async def health() -> HealthResponse:
@@ -88,19 +133,18 @@ async def health() -> HealthResponse:
 async def get_drawer(filename: str):
     """Serve drawer files from video_script/drawers/ directory.
     Supports .html files directly and .md files (converted to HTML on-the-fly)."""
-    from fastapi.responses import HTMLResponse
     import markdown
-    
-    # Get the project root (backend/app/main.py -> backend -> project root)
-    project_root = Path(__file__).resolve().parent.parent.parent
-    drawer_path = project_root / 'video_script' / 'drawers' / filename
+
+    drawer_path = PROJECT_ROOT / 'video_script' / 'drawers' / filename
 
     if not drawer_path.exists():
         raise HTTPException(status_code=404, detail=f'Drawer {filename} not found')
     
     # If it's a .html file, serve it directly
     if filename.endswith('.html'):
-        return FileResponse(drawer_path, media_type='text/html')
+        html_content = drawer_path.read_text(encoding='utf-8')
+        html_content = _rewrite_katex_assets(html_content)
+        return HTMLResponse(content=html_content)
     
     # If it's a .md file, convert to HTML
     if filename.endswith('.md'):
@@ -140,6 +184,10 @@ async def get_drawer(filename: str):
             html_content = html_content.replace(f"MATH_PLACEHOLDER_{i}_MATH", expr)
         
         # Wrap in HTML template with KaTeX support
+        css_href = _katex_asset("katex.min.css")
+        js_href = _katex_asset("katex.min.js")
+        auto_href = _katex_asset("contrib/auto-render.min.js")
+
         full_html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -148,19 +196,13 @@ async def get_drawer(filename: str):
   <title>{filename}</title>
   
   <!-- KaTeX CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
-        crossorigin="anonymous">
+  <link rel="stylesheet" href="{css_href}">
   
   <!-- KaTeX JS -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-          integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
-          crossorigin="anonymous"></script>
+  <script defer src="{js_href}"></script>
 
   <!-- KaTeX auto-render extension -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-          integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
-          crossorigin="anonymous"
+  <script defer src="{auto_href}"
           onload="renderMathInElement(document.body, {{
             delimiters: [
               {{left: '$$', right: '$$', display: true}},

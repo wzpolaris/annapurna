@@ -9,8 +9,8 @@ userText = "slides"
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 
-Welcome to the Northfield AI powered Analytics Engine.
-
+Welcome to Lumenta\n
+\n
 How can I assist you?
 
 """
@@ -100,36 +100,4 @@ As you know, this is a well documented issue with PE fund reporting
 - Leads to wildly misleading conclusions if not properly addressed.
 - [Desmoothing technique](?drawer=desmooth.html) techniques can be applied to attempt to undo the smoothing effects.
 """
-
-
-# # --TURN--
-
-# delay = 2.0
-# pause = True
-
-# cardType = "user-assistant"
-
-# userText = "How do you address?"
-
-# assistantBlocks_type = "markdown"
-# assistantBlocks_content = """
-# An issue with reported private equity returns is that they are appraisal-based, not transaction-based, and this results in artificially smoothing of the return time series.  
-
-# This then leads to several well-documented issues:
-# - Understatment of estimated volatility and true economic risk.
-# - Lower estimated correlations of PE with public markets.
-# - Masking of tail and liquidity risks, especially during crises
-
-# Technically speaking, serial correlation is artificially created in the reported returns. 
-# As result, when analyzing PE, often a [desmoothing technique](?drawer=desmooth) is applied to the Fund's reported returns.
-
-# So, a "de-smoothing" analytical adjustment is often applied to get a better estimate the true risk and return characteristics of PE investments.
-# if the time series is to be used in standard performance and risk analyses including scenario testing, optimization, etc.
-
-# I will apply the technique to the Hamilton Lane fund's returns.
-
-# Before we proceed, any questions about appraisal based returns, smoothing/de-smoothing, serial correlation, etc?
-
-# """
-
 

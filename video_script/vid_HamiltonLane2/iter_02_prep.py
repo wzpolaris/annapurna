@@ -10,8 +10,8 @@ userText = "go ahead with the desmoothing"
 
 assistantBlocks_type = "markdown"
 assistantBlocks_content = """
-Analysis indicates an extremely high level of smoothing.
-
+Analysis indicates an extremely high level of smoothing. \n
+\n
 So much so, that it can be seen in simple visual inspection in plots:
 """
 # Then show the image

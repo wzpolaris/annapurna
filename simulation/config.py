@@ -21,6 +21,7 @@ DEFAULT_KEEP_OPEN = True
 DEFAULT_WEBM_DIR: str | None = "simulation/output/webm"
 DEFAULT_MP4_DIR: str | None = "simulation/output/mp4"
 DEFAULT_FFMPEG_PATH: str | None = "/opt/homebrew/bin/ffmpeg"
+DEFAULT_KATEX_VERSION: str = "0.16.25"
 
 DEFAULT_THINKING_ENABLED = True
 DEFAULT_THINKING_MESSAGE = "Assistant is thinking…"
