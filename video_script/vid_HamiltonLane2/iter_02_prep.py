@@ -22,7 +22,6 @@ assistantBlocks_type = "markdown"
 assistantBlocks_content = """
 Statistical results confirm:
 - Monthly return is nearly constant at ~1.5% return per month -- this is not realistic at all
-- As a result, desmoothing does not yield a series that has any meaningful information.
 """
 
 # Then show the image
